@@ -5,202 +5,469 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ title }}</title>
     <style>
-        :root { --bg: #0f172a; --panel: #1e293b; --accent: #3b82f6; --text: #e2e8f0; --danger: #ef4444; }
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+        :root {
+            --bg: #0b1220;
+            --panel: #131c2e;
+            --panel-2: #1a2438;
+            --border: #253046;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text: #e5ecf5;
+            --muted: #8a9bb0;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
         }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; height: 100%;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at 20% 0%, #14203a 0%, var(--bg) 55%);
+            color: var(--text);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* --- Connection status pill (top-right) --- */
+        .conn-pill {
+            position: fixed; top: 20px; right: 20px;
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 0.78rem;
+            color: var(--muted);
+            z-index: 100;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); }
+        .dot.connected { background: var(--success); }
+        .dot.disconnected { background: var(--danger); }
+        .dot.connecting { animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+        /* --- Card --- */
         .card {
             background: var(--panel);
-            padding: 2.5rem;
-            border-radius: 1rem;
+            border: 1px solid var(--border);
+            padding: 2.5rem 2.25rem;
+            border-radius: 18px;
             width: 100%;
-            max-width: 420px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            max-width: 440px;
+            box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
         }
-        h1 { font-size: 1.5rem; margin-bottom: 0.25rem; font-weight: 600; }
-        p.sub { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; }
-        .input-group { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        h1 {
+            font-size: 1.4rem; font-weight: 700; margin: 0 0 6px;
+            letter-spacing: -0.01em;
+        }
+        .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.75rem; }
+
+        /* --- Inputs --- */
+        label { display: block; font-size: 0.78rem; font-weight: 600;
+                color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .input-wrap { display: flex; gap: 8px; margin-bottom: 6px; }
         input[type="text"] {
             flex: 1;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            border: 1px solid #334155;
-            background: #0f172a;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
             color: var(--text);
-            font-size: 1rem;
+            font-size: 0.95rem;
             outline: none;
+            transition: border-color 0.15s;
         }
         input[type="text"]:focus { border-color: var(--accent); }
+        input[type="text"].invalid { border-color: var(--danger); }
+
+        /* --- Buttons --- */
         button {
-            padding: 0.75rem 1.25rem;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            font-size: 1rem;
+            padding: 0.75rem 1.1rem;
+            border: none; border-radius: 10px;
+            font-weight: 600; font-size: 0.92rem;
             cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            position: relative;
+        }
+        button:disabled { opacity: 0.55; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:not(:disabled):hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:not(:disabled):hover { background: #223050; }
+        .btn-danger { background: var(--danger); color: #fff; width: 100%; margin-top: 1rem; }
+        .btn-danger:hover { background: #d63737; }
+        .btn-full { width: 100%; }
+
+        /* --- Spinner --- */
+        .spinner {
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+        button.loading .spinner { display: inline-block; }
+        button.loading .label { opacity: 0.7; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- Inline error --- */
+        .inline-error {
+            color: var(--danger);
+            font-size: 0.8rem;
+            margin: 0 0 1rem;
+            min-height: 1.1em;
+            opacity: 0;
             transition: opacity 0.2s;
         }
-        button:hover { opacity: 0.9; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-secondary { background: #334155; color: var(--text); }
-        .btn-danger { background: var(--danger); color: white; width: 100%; margin-top: 1rem; }
-        .status { margin-top: 1.5rem; font-size: 0.85rem; color: #94a3b8; min-height: 1.2rem; text-align: center; }
-        .hidden { display: none; }
+        .inline-error.visible { opacity: 1; }
+
+        /* --- Voice upload box --- */
         .upload-box {
-            border: 1px dashed #475569;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            text-align: center;
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 1.1rem;
+            margin-bottom: 0.75rem;
+            background: var(--panel-2);
         }
-        .upload-box p { font-size: 0.8rem; margin: 0 0 0.5rem; color: #94a3b8; }
-        .upload-box input[type="file"] { font-size: 0.8rem; color: var(--text); }
+        .upload-box .label-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+        }
+        .upload-box label { margin: 0; }
+        .file-name { font-size: 0.8rem; color: var(--muted); }
+        input[type="file"] { display: none; }
+        .file-label {
+            display: block; width: 100%;
+            padding: 0.65rem;
+            text-align: center;
+            border-radius: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .file-label:hover { color: var(--text); border-color: var(--accent); }
+
+        /* --- Call state panel --- */
+        .room-info {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        .room-info .code { font-family: 'SF Mono', Consolas, monospace;
+                            font-size: 1rem; font-weight: 600; letter-spacing: 0.05em; }
+        .badge {
+            font-size: 0.7rem; padding: 3px 8px; border-radius: 6px;
+            background: rgba(59,130,246,0.15); color: #93c5fd;
+            font-weight: 600; letter-spacing: 0.03em;
+        }
+        .badge.host { background: rgba(34,197,94,0.15); color: #86efac; }
+
+        /* --- Toasts --- */
+        .toast-container {
+            position: fixed; bottom: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+            z-index: 200;
+        }
+        .toast {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text);
+            min-width: 260px; max-width: 340px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.success { border-left-color: var(--success); }
+        .toast.warning { border-left-color: var(--warning); }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>VoiceClone Call</h1>
-        <p class="sub">Create a room or join an existing one.</p>
-
-        <!-- Lobby View -->
-        <div id="lobby">
-            <div class="input-group">
-                <input type="text" id="roomInput" placeholder="Enter room code" />
-                <button class="btn-primary" onclick="createRoom()">Create</button>
-            </div>
-            <button class="btn-secondary" style="width:100%;" onclick="joinRoom()">Join Room</button>
-        </div>
-
-        <!-- Call View -->
-        <div id="callUI" class="hidden">
-            <div class="upload-box">
-                <p>Upload a 3–10s WAV file of your voice.</p>
-                <input type="file" id="voiceFile" accept="audio/*" />
-                <button class="btn-secondary" style="width:100%; margin-top:0.75rem; font-size:0.85rem;" onclick="uploadVoice()">
-                    Set Clone Voice
-                </button>
-            </div>
-            <button class="btn-danger" onclick="leaveCall()">Leave Call</button>
-        </div>
-
-        <div class="status" id="status">Connecting…</div>
+    <!-- Connection pill -->
+    <div class="conn-pill">
+        <span class="dot connecting" id="connDot"></span>
+        <span id="connText">Connecting…</span>
     </div>
 
-    <!-- Lynkio JS Client -->
+    <!-- Main card -->
+    <div class="card">
+        <h1>VoiceClone Call</h1>
+        <p class="sub">Create a room or join an existing one to start a voice-cloned call.</p>
+
+        <!-- Lobby -->
+        <section id="lobby">
+            <label for="roomInput">Room code</label>
+            <div class="input-wrap">
+                <input type="text" id="roomInput" placeholder="e.g. team-standup-01" autocomplete="off" />
+                <button class="btn-primary" id="createBtn" onclick="createRoom()">
+                    <span class="spinner"></span><span class="label">Create</span>
+                </button>
+            </div>
+            <p class="inline-error" id="lobbyError"></p>
+            <button class="btn-secondary btn-full" id="joinBtn" onclick="joinRoom()">
+                <span class="spinner"></span><span class="label">Join Room</span>
+            </button>
+        </section>
+
+        <!-- Call -->
+        <section id="callUI" class="hidden">
+            <div class="room-info">
+                <span class="badge host" id="roleBadge">Host</span>
+                <span class="code" id="roomCode">—</span>
+            </div>
+
+            <div class="upload-box" id="uploadBox">
+                <div class="label-row">
+                    <label>Reference voice</label>
+                    <span class="file-name" id="fileName">No file selected</span>
+                </div>
+                <input type="file" id="voiceFile" accept="audio/*" onchange="onFileSelected()" />
+                <label class="file-label" for="voiceFile">Choose WAV file (3–10s)</label>
+                <button class="btn-secondary btn-full" id="uploadBtn" style="margin-top:10px;" onclick="uploadVoice()">
+                    <span class="spinner"></span><span class="label">Set Clone Voice</span>
+                </button>
+            </div>
+
+            <p class="inline-error" id="callError"></p>
+            <button class="btn-danger" onclick="leaveCall()">Leave Call</button>
+        </section>
+    </div>
+
+    <!-- Toasts -->
+    <div class="toast-container" id="toasts"></div>
+
+    <!-- Lynkio JS client -->
     <script src="/lynkio/client.js"></script>
     <script>
-        // Initialize Lynkio Client
-        const client = new LynkClient(`ws://${location.host}`);
-        const statusEl = document.getElementById('status');
+    /* -----------------------------------------------------------------
+       Toast + inline error helpers (replaces all alert()s)
+    ----------------------------------------------------------------- */
+    function showToast(message, type = 'info', timeout = 4000) {
+        const container = document.getElementById('toasts');
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.textContent = message;
+        container.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => {
+            el.classList.remove('show');
+            setTimeout(() => el.remove(), 300);
+        }, timeout);
+    }
 
-        client.on('connected', () => {
-            statusEl.textContent = 'Connected. Enter a room code.';
-        });
+    function setInlineError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg || '';
+        el.classList.toggle('visible', !!msg);
+    }
 
-        client.on('room_created', (data) => {
-            statusEl.textContent = `Room ${data.room_id} created. Waiting for joiner…`;
-            showCallUI();
-            startMic(true); // Host mode
-        });
+    function setLoading(btnId, loading) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.classList.toggle('loading', loading);
+        btn.disabled = loading;
+    }
 
-        client.on('joiner_connected', () => {
-            statusEl.textContent = 'Joiner connected. You can start speaking.';
-        });
+    function setConn(state) {
+        const dot = document.getElementById('connDot');
+        const text = document.getElementById('connText');
+        dot.className = 'dot ' + state;
+        text.textContent = state === 'connected' ? 'Connected'
+                        : state === 'disconnected' ? 'Disconnected'
+                        : 'Connecting…';
+    }
 
-        client.on('cloned_audio', (audioBytes) => {
-            playPCM(audioBytes);
-        });
+    /* -----------------------------------------------------------------
+       Lynkio client — auto-connects on instantiation (no await!)
+    ----------------------------------------------------------------- */
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const client = new LynkClient(`${wsProtocol}//${location.host}`);
 
-        client.on('raw_audio', (audioBytes) => {
-            // Host receives joiner's raw audio here
-            playPCM(audioBytes);
-        });
+    let roomId = null;
+    let isHost = false;
 
-        client.on('error', (msg) => {
-            statusEl.textContent = `Error: ${msg.message}`;
-        });
+    client.on('connected', () => {
+        setConn('connected');
+        showToast('Connected to server.', 'success', 2500);
+    });
 
-        // Connect
-        client.connect();
+    client.on('disconnected', () => {
+        setConn('disconnected');
+        showToast('Connection lost. Reconnecting…', 'warning');
+        setLoading('createBtn', false);
+        setLoading('joinBtn', false);
+        setLoading('uploadBtn', false);
+    });
 
-        // --- Room Actions ---
-        function createRoom() {
-            const id = document.getElementById('roomInput').value.trim();
-            if (!id) return alert('Please enter a room code.');
-            client.emit('create_room', { room_id: id });
+    client.on('reconnecting', () => setConn('connecting'));
+
+    client.on('room_created', (data) => {
+        roomId = data.room_id;
+        isHost = true;
+        setLoading('createBtn', false);
+        enterCall();
+        showToast(`Room "${roomId}" created. Waiting for a joiner.`, 'success');
+    });
+
+    client.on('joiner_connected', () => {
+        showToast('Joiner connected. You can start speaking.', 'success');
+    });
+
+    client.on('voice_ready', () => {
+        setLoading('uploadBtn', false);
+        showToast('Clone voice applied.', 'success');
+    });
+
+    client.on('cloned_audio', (buf) => playPCM(buf));
+    client.on('raw_audio', (buf) => playPCM(buf));
+
+    client.on('error', (payload) => {
+        const msg = (payload && payload.message) || 'Server error';
+        // Route the message to whichever pane is currently visible
+        if (document.getElementById('lobby').classList.contains('hidden')) {
+            setInlineError('callError', msg);
+        } else {
+            setInlineError('lobbyError', msg);
         }
+        setLoading('createBtn', false);
+        setLoading('joinBtn', false);
+        setLoading('uploadBtn', false);
+        showToast(msg, 'error');
+    });
 
-        function joinRoom() {
-            const id = document.getElementById('roomInput').value.trim();
-            if (!id) return alert('Please enter a room code.');
-            client.emit('join_room', { room_id: id });
-            showCallUI();
-            startMic(false); // Joiner mode
+    /* -----------------------------------------------------------------
+       Lobby actions
+    ----------------------------------------------------------------- */
+    function createRoom() {
+        const id = document.getElementById('roomInput').value.trim();
+        if (!id) {
+            setInlineError('lobbyError', 'Please enter a room code.');
+            document.getElementById('roomInput').classList.add('invalid');
+            return;
         }
+        setInlineError('lobbyError', '');
+        document.getElementById('roomInput').classList.remove('invalid');
+        setLoading('createBtn', true);
+        client.send('create_room', { room_id: id });
+    }
 
-        function showCallUI() {
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('callUI').classList.remove('hidden');
+    function joinRoom() {
+        const id = document.getElementById('roomInput').value.trim();
+        if (!id) {
+            setInlineError('lobbyError', 'Please enter a room code.');
+            document.getElementById('roomInput').classList.add('invalid');
+            return;
         }
+        setInlineError('lobbyError', '');
+        document.getElementById('roomInput').classList.remove('invalid');
+        setLoading('joinBtn', true);
 
-        function leaveCall() {
-            window.location.reload();
+        // Ask server to join; the server confirms via joiner_connected on the host side
+        client.send('join_room', { room_id: id });
+        roomId = id;
+        isHost = false;
+
+        // Enter the call view immediately; errors from server surface in #callError
+        enterCall();
+        startMic();
+        setLoading('joinBtn', false);
+    }
+
+    function enterCall() {
+        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('callUI').classList.remove('hidden');
+        document.getElementById('roomCode').textContent = roomId;
+        const badge = document.getElementById('roleBadge');
+        badge.textContent = isHost ? 'Host' : 'Joiner';
+        badge.classList.toggle('host', isHost);
+
+        // Only the host uploads a reference voice
+        if (!isHost) {
+            document.getElementById('uploadBox').classList.add('hidden');
+        } else {
+            startMic(); // host also captures mic
         }
+    }
 
-        // --- Voice Reference Upload ---
-        function uploadVoice() {
-            const file = document.getElementById('voiceFile').files[0];
-            if (!file) return alert('Please select an audio file.');
-            const reader = new FileReader();
-            reader.onload = () => {
-                const arrayBuffer = reader.result;
-                client.sendBinaryEvent('voice_reference', new Uint8Array(arrayBuffer));
-                statusEl.textContent = 'Voice reference uploaded.';
+    function leaveCall() {
+        window.location.reload();
+    }
+
+    /* -----------------------------------------------------------------
+       Voice reference upload
+    ----------------------------------------------------------------- */
+    function onFileSelected() {
+        const file = document.getElementById('voiceFile').files[0];
+        document.getElementById('fileName').textContent = file ? file.name : 'No file selected';
+    }
+
+    function uploadVoice() {
+        const file = document.getElementById('voiceFile').files[0];
+        if (!file) {
+            setInlineError('callError', 'Select a WAV file before uploading.');
+            return;
+        }
+        setInlineError('callError', '');
+        setLoading('uploadBtn', true);
+        const reader = new FileReader();
+        reader.onload = () => {
+            client.sendBinary('voice_reference', new Uint8Array(reader.result));
+        };
+        reader.onerror = () => {
+            setLoading('uploadBtn', false);
+            setInlineError('callError', 'Could not read the selected file.');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    /* -----------------------------------------------------------------
+       Mic capture + PCM playback
+    ----------------------------------------------------------------- */
+    async function startMic() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const audioCtx = new AudioContext({ sampleRate: 24000 });
+            const source = audioCtx.createMediaStreamSource(stream);
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            processor.onaudioprocess = (e) => {
+                const input = e.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                    pcm16[i] = Math.max(-1, Math.min(1, input[i])) * 0x7FFF;
+                }
+                client.sendBinary('raw_mic', new Uint8Array(pcm16.buffer));
             };
-            reader.readAsArrayBuffer(file);
+
+            source.connect(processor);
+            processor.connect(audioCtx.destination);
+        } catch (err) {
+            showToast('Microphone access denied: ' + err.message, 'error');
         }
+    }
 
-        // --- Microphone Capture (Simplified PCM) ---
-        async function startMic(isHost) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const audioCtx = new AudioContext({ sampleRate: 24000 });
-                const source = audioCtx.createMediaStreamSource(stream);
-                const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-
-                processor.onaudioprocess = (e) => {
-                    const input = e.inputBuffer.getChannelData(0);
-                    const pcm16 = new Int16Array(input.length);
-                    for (let i = 0; i < input.length; i++) {
-                        pcm16[i] = Math.max(-1, Math.min(1, input[i])) * 0x7FFF;
-                    }
-                    client.sendBinaryEvent('raw_mic', new Uint8Array(pcm16.buffer));
-                };
-
-                source.connect(processor);
-                processor.connect(audioCtx.destination);
-            } catch (err) {
-                alert('Microphone error: ' + err.message);
-            }
-        }
-
-        // --- Playback (Simplified PCM) ---
-        function playPCM(arrayBuffer) {
-            const ctx = new AudioContext({ sampleRate: 24000 });
-            ctx.decodeAudioData(arrayBuffer).then(buffer => {
-                const src = ctx.createBufferSource();
-                src.buffer = buffer;
-                src.connect(ctx.destination);
-                src.start();
-            }).catch(e => console.warn('Playback error', e));
-        }
+    function playPCM(arrayBuffer) {
+        const ctx = new AudioContext({ sampleRate: 24000 });
+        ctx.decodeAudioData(arrayBuffer).then(buffer => {
+            const src = ctx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(ctx.destination);
+            src.start();
+        }).catch(() => { /* ignore decode errors on partial chunks */ });
+    }
     </script>
 </body>
 </html>
