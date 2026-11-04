@@ -235,7 +235,7 @@ button { font-family: inherit; cursor: pointer; }
   <div class="call-stage hidden" id="callStage">
     <div class="upload-banner hidden" id="uploadBanner">
       <span>Clone voice:</span>
-      <input type="file" id="voiceFile" accept="audio/*" onchange="onFileSelected()" />
+      <input type="file" id="voiceFile" accept="audio*/" onchange="onFileSelected()" />
       <label for="voiceFile" class="upload-btn">Choose file</label>
       <span class="upload-filename" id="uploadFilename">none</span>
       <button class="upload-btn" id="uploadBtn" onclick="uploadVoice()" disabled>Apply</button>
