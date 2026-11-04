@@ -250,224 +250,375 @@
     <div class="toast-container" id="toasts"></div>
 
     <!-- Lynkio JS client -->
-    <script src="/lynkio/client.js"></script>
+    <script src="https://voice-call-production-c89f.up.railway.app/lynkio/client.js"></script>
     <script>
-    /* -----------------------------------------------------------------
-       Toast + inline error helpers (replaces all alert()s)
-    ----------------------------------------------------------------- */
-    function showToast(message, type = 'info', timeout = 4000) {
-        const container = document.getElementById('toasts');
-        const el = document.createElement('div');
-        el.className = `toast ${type}`;
-        el.textContent = message;
-        container.appendChild(el);
-        requestAnimationFrame(() => el.classList.add('show'));
-        setTimeout(() => {
-            el.classList.remove('show');
-            setTimeout(() => el.remove(), 300);
-        }, timeout);
-    }
-
-    function setInlineError(id, msg) {
-        const el = document.getElementById(id);
-        el.textContent = msg || '';
-        el.classList.toggle('visible', !!msg);
-    }
-
-    function setLoading(btnId, loading) {
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        btn.classList.toggle('loading', loading);
-        btn.disabled = loading;
-    }
-
-    function setConn(state) {
-        const dot = document.getElementById('connDot');
-        const text = document.getElementById('connText');
-        dot.className = 'dot ' + state;
-        text.textContent = state === 'connected' ? 'Connected'
-                        : state === 'disconnected' ? 'Disconnected'
-                        : 'Connecting…';
-    }
-
-    /* -----------------------------------------------------------------
-       Lynkio client — auto-connects on instantiation (no await!)
-    ----------------------------------------------------------------- */
-    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const client = new LynkClient(`${wsProtocol}//${location.host}`);
-
-    let roomId = null;
-    let isHost = false;
-
-    client.on('connected', () => {
+  /* -------------------------------------------------------
+   TOAST + INLINE ERROR HELPERS
+------------------------------------------------------- */
+function showToast(message, type = 'info', timeout = 4000) {
+    const container = document.getElementById('toasts');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 300);
+    }, timeout);
+}
+function setInlineError(id, message) {
+    const el = document.getElementById(id);
+    el.textContent = message || '';
+    el.classList.toggle('visible', !!message);
+}
+function setLoading(id, loading) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.classList.toggle('loading', loading);
+    btn.disabled = loading;
+}
+function setConn(state) {
+    document.getElementById('connDot').className = 'dot ' + state;
+    document.getElementById('connText').textContent =
+        state === 'connected' ? 'Connected' :
+        state === 'disconnected' ? 'Disconnected' :
+        'Connecting…';
+}
+/* -------------------------------------------------------
+   LYNKIO CLIENT
+------------------------------------------------------- */
+const client = new LynkClient(
+    "wss://voice-call-production-c89f.up.railway.app"
+);
+let isConnected = false;
+let roomId = null;
+let isHost = false;
+let micStarted = false;
+let micStream = null;
+let audioContext = null;
+let micSource = null;
+let micProcessor = null;
+let silentGain = null;
+/* -------------------------------------------------------
+   INITIALIZE CONNECTION
+------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', async () => {
+    setConn('connecting');
+    try {
+        await client.connect();
+        isConnected = true;
         setConn('connected');
         showToast('Connected to server.', 'success', 2500);
-    });
-
-    client.on('disconnected', () => {
+    } catch (error) {
+        isConnected = false;
         setConn('disconnected');
-        showToast('Connection lost. Reconnecting…', 'warning');
-        setLoading('createBtn', false);
-        setLoading('joinBtn', false);
-        setLoading('uploadBtn', false);
+        console.error('Lynkio connection error:', error);
+        showToast('Unable to connect to server.', 'error');
+    }
+});
+/* -------------------------------------------------------
+   CONNECTION EVENTS
+------------------------------------------------------- */
+client.on('disconnected', () => {
+    isConnected = false;
+    setConn('disconnected');
+    setLoading('createBtn', false);
+    setLoading('joinBtn', false);
+    setLoading('uploadBtn', false);
+    showToast('Connection lost.', 'warning');
+});
+client.on('reconnecting', () => {
+    isConnected = false;
+    setConn('connecting');
+});
+/* -------------------------------------------------------
+   ROOM EVENTS
+------------------------------------------------------- */
+client.on('room_created', (data) => {
+    console.log('Room created:', data);
+    roomId = data.room_id;
+    isHost = true;
+    setLoading('createBtn', false);
+    enterCall();
+    showToast(
+        `Room "${roomId}" created. Waiting for a joiner.`,
+        'success'
+    );
+});
+client.on('room_joined', (data) => {
+    console.log('Room joined:', data);
+    roomId = data.room_id || roomId;
+    isHost = false;
+    setLoading('joinBtn', false);
+    enterCall();
+});
+client.on('joiner_connected', (data) => {
+    console.log('Joiner connected:', data);
+    showToast('Joiner connected.', 'success');
+});
+/* -------------------------------------------------------
+   VOICE EVENTS
+------------------------------------------------------- */
+client.on('voice_ready', () => {
+    setLoading('uploadBtn', false);
+    showToast('Clone voice applied.', 'success');
+});
+client.on('cloned_audio', (data) => {
+    playPCM(data);
+});
+client.on('raw_audio', (data) => {
+    playPCM(data);
+});
+/* -------------------------------------------------------
+   ERROR EVENTS
+------------------------------------------------------- */
+client.on('error', (payload) => {
+    console.error('Server error:', payload);
+    const message =
+        payload?.message || 'An unexpected server error occurred.';
+    const lobby = document.getElementById('lobby');
+    if (lobby.classList.contains('hidden')) {
+        setInlineError('callError', message);
+    } else {
+        setInlineError('lobbyError', message);
+    }
+    setLoading('createBtn', false);
+    setLoading('joinBtn', false);
+    setLoading('uploadBtn', false);
+    showToast(message, 'error');
+});
+/* -------------------------------------------------------
+   CONNECTION GUARD
+------------------------------------------------------- */
+function requireConnection() {
+    if (!isConnected) {
+        showToast(
+            'Please wait for the Lynkio connection.',
+            'warning'
+        );
+        return false;
+    }
+    return true;
+}
+/* -------------------------------------------------------
+   CREATE ROOM
+------------------------------------------------------- */
+function createRoom() {
+    if (!requireConnection()) return;
+    const id = document.getElementById('roomInput').value.trim();
+    if (!id) {
+        setInlineError('lobbyError', 'Please enter a room code.');
+        return;
+    }
+    setInlineError('lobbyError', '');
+    setLoading('createBtn', true);
+    client.emit('create_room', {
+        room_id: id
     });
-
-    client.on('reconnecting', () => setConn('connecting'));
-
-    client.on('room_created', (data) => {
-        roomId = data.room_id;
-        isHost = true;
-        setLoading('createBtn', false);
-        enterCall();
-        showToast(`Room "${roomId}" created. Waiting for a joiner.`, 'success');
+}
+/* -------------------------------------------------------
+   JOIN ROOM
+------------------------------------------------------- */
+function joinRoom() {
+    if (!requireConnection()) return;
+    const id = document.getElementById('roomInput').value.trim();
+    if (!id) {
+        setInlineError('lobbyError', 'Please enter a room code.');
+        return;
+    }
+    setInlineError('lobbyError', '');
+    roomId = id;
+    isHost = false;
+    setLoading('joinBtn', true);
+    client.emit('join_room', {
+        room_id: id
     });
-
-    client.on('joiner_connected', () => {
-        showToast('Joiner connected. You can start speaking.', 'success');
-    });
-
-    client.on('voice_ready', () => {
-        setLoading('uploadBtn', false);
-        showToast('Clone voice applied.', 'success');
-    });
-
-    client.on('cloned_audio', (buf) => playPCM(buf));
-    client.on('raw_audio', (buf) => playPCM(buf));
-
-    client.on('error', (payload) => {
-        const msg = (payload && payload.message) || 'Server error';
-        // Route the message to whichever pane is currently visible
-        if (document.getElementById('lobby').classList.contains('hidden')) {
-            setInlineError('callError', msg);
-        } else {
-            setInlineError('lobbyError', msg);
-        }
-        setLoading('createBtn', false);
-        setLoading('joinBtn', false);
-        setLoading('uploadBtn', false);
-        showToast(msg, 'error');
-    });
-
-    /* -----------------------------------------------------------------
-       Lobby actions
-    ----------------------------------------------------------------- */
-    function createRoom() {
-        const id = document.getElementById('roomInput').value.trim();
-        if (!id) {
-            setInlineError('lobbyError', 'Please enter a room code.');
-            document.getElementById('roomInput').classList.add('invalid');
-            return;
-        }
-        setInlineError('lobbyError', '');
-        document.getElementById('roomInput').classList.remove('invalid');
-        setLoading('createBtn', true);
-        client.send('create_room', { room_id: id });
+}
+/* -------------------------------------------------------
+   ENTER CALL
+------------------------------------------------------- */
+async function enterCall() {
+    document.getElementById('lobby').classList.add('hidden');
+    document.getElementById('callUI').classList.remove('hidden');
+    document.getElementById('roomCode').textContent = roomId;
+    const badge = document.getElementById('roleBadge');
+    badge.textContent = isHost ? 'Host' : 'Joiner';
+    badge.classList.toggle('host', isHost);
+    if (!isHost) {
+        document.getElementById('uploadBox').classList.add('hidden');
     }
-
-    function joinRoom() {
-        const id = document.getElementById('roomInput').value.trim();
-        if (!id) {
-            setInlineError('lobbyError', 'Please enter a room code.');
-            document.getElementById('roomInput').classList.add('invalid');
-            return;
-        }
-        setInlineError('lobbyError', '');
-        document.getElementById('roomInput').classList.remove('invalid');
-        setLoading('joinBtn', true);
-
-        // Ask server to join; the server confirms via joiner_connected on the host side
-        client.send('join_room', { room_id: id });
-        roomId = id;
-        isHost = false;
-
-        // Enter the call view immediately; errors from server surface in #callError
-        enterCall();
-        startMic();
-        setLoading('joinBtn', false);
+    await startMic();
+}
+/* -------------------------------------------------------
+   LEAVE CALL
+------------------------------------------------------- */
+function leaveCall() {
+    stopMic();
+    window.location.reload();
+}
+/* -------------------------------------------------------
+   VOICE FILE SELECTION
+------------------------------------------------------- */
+function onFileSelected() {
+    const file = document.getElementById('voiceFile').files[0];
+    document.getElementById('fileName').textContent =
+        file ? file.name : 'No file selected';
+}
+/* -------------------------------------------------------
+   UPLOAD REFERENCE VOICE
+------------------------------------------------------- */
+function uploadVoice() {
+    if (!requireConnection()) return;
+    const file = document.getElementById('voiceFile').files[0];
+    if (!file) {
+        setInlineError('callError', 'Select a WAV file before uploading.');
+        return;
     }
-
-    function enterCall() {
-        document.getElementById('lobby').classList.add('hidden');
-        document.getElementById('callUI').classList.remove('hidden');
-        document.getElementById('roomCode').textContent = roomId;
-        const badge = document.getElementById('roleBadge');
-        badge.textContent = isHost ? 'Host' : 'Joiner';
-        badge.classList.toggle('host', isHost);
-
-        // Only the host uploads a reference voice
-        if (!isHost) {
-            document.getElementById('uploadBox').classList.add('hidden');
-        } else {
-            startMic(); // host also captures mic
-        }
-    }
-
-    function leaveCall() {
-        window.location.reload();
-    }
-
-    /* -----------------------------------------------------------------
-       Voice reference upload
-    ----------------------------------------------------------------- */
-    function onFileSelected() {
-        const file = document.getElementById('voiceFile').files[0];
-        document.getElementById('fileName').textContent = file ? file.name : 'No file selected';
-    }
-
-    function uploadVoice() {
-        const file = document.getElementById('voiceFile').files[0];
-        if (!file) {
-            setInlineError('callError', 'Select a WAV file before uploading.');
-            return;
-        }
-        setInlineError('callError', '');
-        setLoading('uploadBtn', true);
-        const reader = new FileReader();
-        reader.onload = () => {
-            client.sendBinary('voice_reference', new Uint8Array(reader.result));
-        };
-        reader.onerror = () => {
-            setLoading('uploadBtn', false);
-            setInlineError('callError', 'Could not read the selected file.');
-        };
-        reader.readAsArrayBuffer(file);
-    }
-
-    /* -----------------------------------------------------------------
-       Mic capture + PCM playback
-    ----------------------------------------------------------------- */
-    async function startMic() {
+    setInlineError('callError', '');
+    setLoading('uploadBtn', true);
+    const reader = new FileReader();
+    reader.onload = () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const audioCtx = new AudioContext({ sampleRate: 24000 });
-            const source = audioCtx.createMediaStreamSource(stream);
-            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-
-            processor.onaudioprocess = (e) => {
-                const input = e.inputBuffer.getChannelData(0);
-                const pcm16 = new Int16Array(input.length);
-                for (let i = 0; i < input.length; i++) {
-                    pcm16[i] = Math.max(-1, Math.min(1, input[i])) * 0x7FFF;
-                }
-                client.sendBinary('raw_mic', new Uint8Array(pcm16.buffer));
-            };
-
-            source.connect(processor);
-            processor.connect(audioCtx.destination);
-        } catch (err) {
-            showToast('Microphone access denied: ' + err.message, 'error');
+            client.sendBinary(
+                'voice_reference',
+                new Uint8Array(reader.result)
+            );
+        } catch (error) {
+            console.error('Voice upload error:', error);
+            setLoading('uploadBtn', false);
+            setInlineError('callError', 'Voice upload failed.');
         }
+    };
+    reader.onerror = () => {
+        setLoading('uploadBtn', false);
+        setInlineError('callError', 'Could not read the selected file.');
+    };
+    reader.readAsArrayBuffer(file);
+}
+/* -------------------------------------------------------
+   MICROPHONE CAPTURE
+------------------------------------------------------- */
+async function startMic() {
+    if (micStarted) return;
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                channelCount: 1,
+                echoCancellation: true,
+                noiseSuppression: true
+            }
+        });
+        audioContext = new AudioContext({
+            sampleRate: 24000
+        });
+        await audioContext.resume();
+        micSource = audioContext.createMediaStreamSource(micStream);
+        micProcessor = audioContext.createScriptProcessor(
+            4096,
+            1,
+            1
+        );
+        silentGain = audioContext.createGain();
+        silentGain.gain.value = 0;
+        micProcessor.onaudioprocess = (event) => {
+            if (!micStarted || !isConnected) return;
+            const input = event.inputBuffer.getChannelData(0);
+            const pcm16 = new Int16Array(input.length);
+            for (let i = 0; i < input.length; i++) {
+                const sample = Math.max(-1, Math.min(1, input[i]));
+                pcm16[i] = sample < 0
+                    ? sample * 32768
+                    : sample * 32767;
+            }
+            try {
+                client.sendBinary(
+                    'raw_mic',
+                    new Uint8Array(pcm16.buffer)
+                );
+            } catch (error) {
+                console.error('Microphone transmission error:', error);
+            }
+        };
+        micSource.connect(micProcessor);
+        micProcessor.connect(silentGain);
+        silentGain.connect(audioContext.destination);
+        micStarted = true;
+    } catch (error) {
+        console.error('Microphone error:', error);
+        showToast(
+            'Microphone access failed: ' + error.message,
+            'error'
+        );
     }
-
-    function playPCM(arrayBuffer) {
-        const ctx = new AudioContext({ sampleRate: 24000 });
-        ctx.decodeAudioData(arrayBuffer).then(buffer => {
-            const src = ctx.createBufferSource();
-            src.buffer = buffer;
-            src.connect(ctx.destination);
-            src.start();
-        }).catch(() => { /* ignore decode errors on partial chunks */ });
+}
+/* -------------------------------------------------------
+   STOP MICROPHONE
+------------------------------------------------------- */
+function stopMic() {
+    micStarted = false;
+    if (micProcessor) {
+        micProcessor.disconnect();
+        micProcessor = null;
     }
+    if (micSource) {
+        micSource.disconnect();
+        micSource = null;
+    }
+    if (silentGain) {
+        silentGain.disconnect();
+        silentGain = null;
+    }
+    if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+    }
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+}
+/* -------------------------------------------------------
+   PCM16 AUDIO PLAYBACK
+------------------------------------------------------- */
+function playPCM(data) {
+    if (!data) return;
+    if (!audioContext || audioContext.state === 'closed') {
+        audioContext = new AudioContext({
+            sampleRate: 24000
+        });
+    }
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    let pcm;
+    if (data instanceof ArrayBuffer) {
+        pcm = new Int16Array(data);
+    } else if (ArrayBuffer.isView(data)) {
+        pcm = new Int16Array(
+            data.buffer,
+            data.byteOffset,
+            Math.floor(data.byteLength / 2)
+        );
+    } else {
+        console.error('Unsupported PCM format:', data);
+        return;
+    }
+    if (!pcm.length) return;
+    const buffer = audioContext.createBuffer(
+        1,
+        pcm.length,
+        24000
+    );
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) {
+        channel[i] = pcm[i] / 32768;
+    }
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start();
+}
     </script>
 </body>
 </html>
