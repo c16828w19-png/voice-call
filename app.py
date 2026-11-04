@@ -58,7 +58,7 @@ async def clone_audio(pcm_bytes: bytes, ref_audio_np: np.ndarray) -> bytes:
 @app.get("/")
 async def index(req):
     """Serve the main call UI using Lynkio's render_template."""
-    return render_template("call.html", context={"title": "VoiceClone Call"})
+    return render_template("call.html", context={"title": "Zoom Call"})
 
 # ------------------------------------------------------------------
 # 5. Room Lifecycle Events
@@ -67,10 +67,10 @@ async def index(req):
 async def create_room(client, data):
     room_id = data.get("room_id")
     if not room_id:
-        await client.send("error", {"message": "Room code required."})
+        await app.emit("error", {"message": "Room code required."}, client.id)
         return
     if room_id in rooms:
-        await client.send("error", {"message": "Room already exists."})
+        await app.emit("error", {"message": "Room already exists."}, client.id)
         return
 
     rooms[room_id] = {
@@ -80,23 +80,23 @@ async def create_room(client, data):
         "created_at": time.time(),
     }
     app.join_room(client.id, room_id)
-    await client.send("room_created", {"room_id": room_id})
+    await app.emit("room_created", {"room_id": room_id}, client.id)
 
 @app.on("join_room")
 async def join_room(client, data):
     room_id = data.get("room_id")
     room = rooms.get(room_id)
     if not room:
-        await client.send("error", {"message": "Invalid room code."})
+        await app.emit("error", {"message": "Invalid room code."}, client.id)
         return
     if room["joiner"] is not None:
-        await client.send("error", {"message": "Room is full."})
+        await app.emit("error", {"message": "Room is full."}, client.id)
         return
 
     room["joiner"] = client.id
     app.join_room(client.id, room_id)
     # Notify the host that the joiner is ready
-    await app.emit_to_room(room_id, "joiner_connected", {}, exclude=[client.id])
+    await app.emit_to_room(room_id, "joiner_connected", {}, exclude=client.id)
 
 # ------------------------------------------------------------------
 # 6. Binary Audio Handlers (Selective Relay)
@@ -110,9 +110,10 @@ async def handle_voice_reference(client, payload: bytes):
     try:
         audio, sr = sf.read(io.BytesIO(payload))
         rooms[room_id]["voice_ref"] = audio.astype(np.float32)
-        await client.send("voice_ready", {"room_id": room_id})
+        return await app.emit("voice_ready", {"room_id": room_id}, client.id)
+        
     except Exception as e:
-        await client.send("error", {"message": f"Invalid audio file: {e}"})
+        return await app.emit("error", {"message": f"Invalid audio file: {e}"}, client.id)
 
 @app.on_binary_event("raw_mic")
 async def handle_raw_mic(client, payload: bytes):
