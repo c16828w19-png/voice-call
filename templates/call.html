@@ -234,7 +234,7 @@
                     <label>Reference voice</label>
                     <span class="file-name" id="fileName">No file selected</span>
                 </div>
-                <input type="file" id="voiceFile" accept="audio/*" onchange="onFileSelected()" />
+                <input type="file" id="voiceFile" accept="audio/*,.wav,.mp3,.m4a,.aac,.caf,.ogg" onchange="onFileSelected()" />
                 <label class="file-label" for="voiceFile">Choose WAV file (3–10s)</label>
                 <button class="btn-secondary btn-full" id="uploadBtn" style="margin-top:10px;" onclick="uploadVoice()">
                     <span class="spinner"></span><span class="label">Set Clone Voice</span>
