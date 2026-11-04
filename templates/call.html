@@ -27,7 +27,7 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* --- Connection status pill (top-right) --- */
+        /* ---------- Connection pill ---------- */
         .conn-pill {
             position: fixed; top: 20px; right: 20px;
             display: flex; align-items: center; gap: 8px;
@@ -45,7 +45,7 @@
         .dot.connecting { animation: pulse 1.2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-        /* --- Card --- */
+        /* ---------- Card ---------- */
         .card {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -55,15 +55,13 @@
             max-width: 440px;
             box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
         }
-        h1 {
-            font-size: 1.4rem; font-weight: 700; margin: 0 0 6px;
-            letter-spacing: -0.01em;
-        }
+        h1 { font-size: 1.4rem; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
         .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.75rem; }
 
-        /* --- Inputs --- */
+        /* ---------- Inputs ---------- */
         label { display: block; font-size: 0.78rem; font-weight: 600;
-                color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+                color: var(--muted); margin-bottom: 6px;
+                text-transform: uppercase; letter-spacing: 0.04em; }
         .input-wrap { display: flex; gap: 8px; margin-bottom: 6px; }
         input[type="text"] {
             flex: 1;
@@ -79,7 +77,7 @@
         input[type="text"]:focus { border-color: var(--accent); }
         input[type="text"].invalid { border-color: var(--danger); }
 
-        /* --- Buttons --- */
+        /* ---------- Buttons ---------- */
         button {
             padding: 0.75rem 1.1rem;
             border: none; border-radius: 10px;
@@ -94,11 +92,11 @@
         .btn-primary:not(:disabled):hover { background: var(--accent-hover); }
         .btn-secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
         .btn-secondary:not(:disabled):hover { background: #223050; }
-        .btn-danger { background: var(--danger); color: #fff; width: 100%; margin-top: 1rem; }
+        .btn-danger { background: var(--danger); color: #fff; width: 100%; margin-top: 0.6rem; }
         .btn-danger:hover { background: #d63737; }
         .btn-full { width: 100%; }
 
-        /* --- Spinner --- */
+        /* ---------- Spinner ---------- */
         .spinner {
             width: 14px; height: 14px;
             border: 2px solid rgba(255,255,255,0.35);
@@ -111,7 +109,7 @@
         button.loading .label { opacity: 0.7; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* --- Inline error --- */
+        /* ---------- Inline error ---------- */
         .inline-error {
             color: var(--danger);
             font-size: 0.8rem;
@@ -122,7 +120,7 @@
         }
         .inline-error.visible { opacity: 1; }
 
-        /* --- Voice upload box --- */
+        /* ---------- Voice upload box ---------- */
         .upload-box {
             border: 1px dashed var(--border);
             border-radius: 12px;
@@ -150,7 +148,7 @@
         }
         .file-label:hover { color: var(--text); border-color: var(--accent); }
 
-        /* --- Call state panel --- */
+        /* ---------- Call state panel ---------- */
         .room-info {
             display: flex; align-items: center; gap: 10px;
             padding: 12px 14px;
@@ -168,7 +166,7 @@
         }
         .badge.host { background: rgba(34,197,94,0.15); color: #86efac; }
 
-        /* --- Toasts --- */
+        /* ---------- Toasts ---------- */
         .toast-container {
             position: fixed; bottom: 20px; right: 20px;
             display: flex; flex-direction: column; gap: 10px;
@@ -236,12 +234,15 @@
                 </div>
                 <input type="file" id="voiceFile" accept="audio/*,.wav,.mp3,.m4a,.aac,.caf,.ogg" onchange="onFileSelected()" />
                 <label class="file-label" for="voiceFile">Choose WAV file (3–10s)</label>
-                <button class="btn-secondary btn-full" id="uploadBtn" style="margin-top:10px;" onclick="uploadVoice()">
+                <button class="btn-secondary btn-full" id="uploadBtn"
+                        style="margin-top:10px;" onclick="uploadVoice()">
                     <span class="spinner"></span><span class="label">Set Clone Voice</span>
                 </button>
             </div>
 
             <p class="inline-error" id="callError"></p>
+            <button class="btn-danger" id="closeRoomBtn" onclick="deleteRoom()"
+                    style="display:none;">Close Room</button>
             <button class="btn-danger" onclick="leaveCall()">Leave Call</button>
         </section>
     </div>
@@ -249,376 +250,344 @@
     <!-- Toasts -->
     <div class="toast-container" id="toasts"></div>
 
-    <!-- Lynkio JS client -->
-    <script src="https://voice-call-production-c89f.up.railway.app/lynkio/client.js"></script>
+    <!-- Lynkio JS client (served by the backend via serve_client=True) -->
+    <script src="/lynkio/client.js"></script>
     <script>
-  /* -------------------------------------------------------
-   TOAST + INLINE ERROR HELPERS
-------------------------------------------------------- */
-function showToast(message, type = 'info', timeout = 4000) {
-    const container = document.getElementById('toasts');
-    const el = document.createElement('div');
-    el.className = `toast ${type}`;
-    el.textContent = message;
-    container.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('show'));
-    setTimeout(() => {
-        el.classList.remove('show');
-        setTimeout(() => el.remove(), 300);
-    }, timeout);
-}
-function setInlineError(id, message) {
-    const el = document.getElementById(id);
-    el.textContent = message || '';
-    el.classList.toggle('visible', !!message);
-}
-function setLoading(id, loading) {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    btn.classList.toggle('loading', loading);
-    btn.disabled = loading;
-}
-function setConn(state) {
-    document.getElementById('connDot').className = 'dot ' + state;
-    document.getElementById('connText').textContent =
-        state === 'connected' ? 'Connected' :
-        state === 'disconnected' ? 'Disconnected' :
-        'Connecting…';
-}
-/* -------------------------------------------------------
-   LYNKIO CLIENT
-------------------------------------------------------- */
-const client = new LynkClient(
-    "wss://voice-call-production-c89f.up.railway.app"
-);
-let isConnected = false;
-let roomId = null;
-let isHost = false;
-let micStarted = false;
-let micStream = null;
-let audioContext = null;
-let micSource = null;
-let micProcessor = null;
-let silentGain = null;
-/* -------------------------------------------------------
-   INITIALIZE CONNECTION
-------------------------------------------------------- */
-document.addEventListener('DOMContentLoaded', async () => {
-    setConn('connecting');
-    try {
-        await client.connect();
-        isConnected = true;
-        setConn('connected');
-        showToast('Connected to server.', 'success', 2500);
-    } catch (error) {
-        isConnected = false;
-        setConn('disconnected');
-        console.error('Lynkio connection error:', error);
-        showToast('Unable to connect to server.', 'error');
+    /* =====================================================
+       UI HELPERS
+    ===================================================== */
+    function showToast(message, type = 'info', timeout = 4000) {
+        const container = document.getElementById('toasts');
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.textContent = message;
+        container.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => {
+            el.classList.remove('show');
+            setTimeout(() => el.remove(), 300);
+        }, timeout);
     }
-});
-/* -------------------------------------------------------
-   CONNECTION EVENTS
-------------------------------------------------------- */
-client.on('disconnected', () => {
-    isConnected = false;
-    setConn('disconnected');
-    setLoading('createBtn', false);
-    setLoading('joinBtn', false);
-    setLoading('uploadBtn', false);
-    showToast('Connection lost.', 'warning');
-});
-client.on('reconnecting', () => {
-    isConnected = false;
-    setConn('connecting');
-});
-/* -------------------------------------------------------
-   ROOM EVENTS
-------------------------------------------------------- */
-client.on('room_created', (data) => {
-    console.log('Room created:', data);
-    roomId = data.room_id;
-    isHost = true;
-    setLoading('createBtn', false);
-    enterCall();
-    showToast(
-        `Room "${roomId}" created. Waiting for a joiner.`,
-        'success'
-    );
-});
-client.on('room_joined', (data) => {
-    console.log('Room joined:', data);
-    roomId = data.room_id || roomId;
-    isHost = false;
-    setLoading('joinBtn', false);
-    enterCall();
-});
-client.on('joiner_connected', (data) => {
-    console.log('Joiner connected:', data);
-    showToast('Joiner connected.', 'success');
-});
-/* -------------------------------------------------------
-   VOICE EVENTS
-------------------------------------------------------- */
-client.on('voice_ready', () => {
-    setLoading('uploadBtn', false);
-    showToast('Clone voice applied.', 'success');
-});
-client.on('cloned_audio', (data) => {
-    playPCM(data);
-});
-client.on('raw_audio', (data) => {
-    playPCM(data);
-});
-/* -------------------------------------------------------
-   ERROR EVENTS
-------------------------------------------------------- */
-client.on('error', (payload) => {
-    console.error('Server error:', payload);
-    const message =
-        payload?.message || 'An unexpected server error occurred.';
-    const lobby = document.getElementById('lobby');
-    if (lobby.classList.contains('hidden')) {
-        setInlineError('callError', message);
-    } else {
-        setInlineError('lobbyError', message);
+    function setInlineError(id, msg) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = msg || '';
+        el.classList.toggle('visible', !!msg);
     }
-    setLoading('createBtn', false);
-    setLoading('joinBtn', false);
-    setLoading('uploadBtn', false);
-    showToast(message, 'error');
-});
-/* -------------------------------------------------------
-   CONNECTION GUARD
-------------------------------------------------------- */
-function requireConnection() {
-    if (!isConnected) {
-        showToast(
-            'Please wait for the Lynkio connection.',
-            'warning'
-        );
-        return false;
+    function setLoading(id, loading) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.classList.toggle('loading', loading);
+        btn.disabled = loading;
     }
-    return true;
-}
-/* -------------------------------------------------------
-   CREATE ROOM
-------------------------------------------------------- */
-function createRoom() {
-    if (!requireConnection()) return;
-    const id = document.getElementById('roomInput').value.trim();
-    if (!id) {
-        setInlineError('lobbyError', 'Please enter a room code.');
-        return;
+    function setConn(state) {
+        const dot = document.getElementById('connDot');
+        const text = document.getElementById('connText');
+        dot.className = 'dot ' + state;
+        text.textContent = state === 'connected' ? 'Connected'
+                        : state === 'disconnected' ? 'Disconnected'
+                        : 'Connecting…';
     }
-    setInlineError('lobbyError', '');
-    setLoading('createBtn', true);
-    client.emit('create_room', {
-        room_id: id
-    });
-}
-/* -------------------------------------------------------
-   JOIN ROOM
-------------------------------------------------------- */
-function joinRoom() {
-    if (!requireConnection()) return;
-    const id = document.getElementById('roomInput').value.trim();
-    if (!id) {
-        setInlineError('lobbyError', 'Please enter a room code.');
-        return;
-    }
-    setInlineError('lobbyError', '');
-    roomId = id;
-    isHost = false;
-    setLoading('joinBtn', true);
-    client.emit('join_room', {
-        room_id: id
-    });
-}
-/* -------------------------------------------------------
-   ENTER CALL
-------------------------------------------------------- */
-async function enterCall() {
-    document.getElementById('lobby').classList.add('hidden');
-    document.getElementById('callUI').classList.remove('hidden');
-    document.getElementById('roomCode').textContent = roomId;
-    const badge = document.getElementById('roleBadge');
-    badge.textContent = isHost ? 'Host' : 'Joiner';
-    badge.classList.toggle('host', isHost);
-    if (!isHost) {
-        document.getElementById('uploadBox').classList.add('hidden');
-    }
-    await startMic();
-}
-/* -------------------------------------------------------
-   LEAVE CALL
-------------------------------------------------------- */
-function leaveCall() {
-    stopMic();
-    window.location.reload();
-}
-/* -------------------------------------------------------
-   VOICE FILE SELECTION
-------------------------------------------------------- */
-function onFileSelected() {
-    const file = document.getElementById('voiceFile').files[0];
-    document.getElementById('fileName').textContent =
-        file ? file.name : 'No file selected';
-}
-/* -------------------------------------------------------
-   UPLOAD REFERENCE VOICE
-------------------------------------------------------- */
-function uploadVoice() {
-    if (!requireConnection()) return;
-    const file = document.getElementById('voiceFile').files[0];
-    if (!file) {
-        setInlineError('callError', 'Select a WAV file before uploading.');
-        return;
-    }
-    setInlineError('callError', '');
-    setLoading('uploadBtn', true);
-    const reader = new FileReader();
-    reader.onload = () => {
-        try {
-            client.sendBinary(
-                'voice_reference',
-                new Uint8Array(reader.result)
-            );
-        } catch (error) {
-            console.error('Voice upload error:', error);
+
+    /* =====================================================
+       STATE
+    ===================================================== */
+    let client = null;
+    let isConnected = false;
+    let roomId = null;
+    let isHost = false;
+    let micStarted = false;
+    let micStream = null;
+    let audioCtx = null;
+    let micSource = null;
+    let micProcessor = null;
+    let silentGain = null;
+
+    /* =====================================================
+       INITIALIZE CONNECTION  (await client.connect())
+    ===================================================== */
+    async function initClient() {
+        setConn('connecting');
+
+        const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        client = new LynkClient(`${wsProtocol}//${location.host}`);
+
+        // Disable automatic reconnection so a deliberate close (e.g. room_closed)
+        // does not trigger an endless reconnect loop.
+        if ('autoReconnect' in client) client.autoReconnect = false;
+        if ('reconnect' in client) client.reconnect = false;
+        if (typeof client.setAutoReconnect === 'function') client.setAutoReconnect(false);
+
+        /* ---------- server events ---------- */
+        client.on('room_created', (data) => {
+            roomId = data.room_id;
+            isHost = true;
+            setLoading('createBtn', false);
+            enterCall();
+            showToast(`Room "${roomId}" created. Waiting for a joiner.`, 'success');
+        });
+
+        client.on('room_joined', (data) => {
+            roomId = data.room_id;
+            isHost = false;
+            setLoading('joinBtn', false);
+            enterCall();
+            showToast('Joined the room.', 'success');
+        });
+
+        client.on('joiner_connected', () => {
+            showToast('Joiner connected.', 'success');
+        });
+
+        client.on('voice_ready', () => {
             setLoading('uploadBtn', false);
-            setInlineError('callError', 'Voice upload failed.');
+            showToast('Clone voice applied.', 'success');
+        });
+
+        client.on('cloned_audio', (buf) => playPCM(buf));
+        client.on('raw_audio',    (buf) => playPCM(buf));
+
+        client.on('room_closed', () => {
+            showToast('The host closed the room.', 'warning');
+            stopMic();
+            try { if (typeof client.close === 'function') client.close(); } catch (_) {}
+            setTimeout(() => window.location.reload(), 1200);
+        });
+
+        client.on('disconnected', () => {
+            if (isConnected) {
+                isConnected = false;
+                setConn('disconnected');
+                showToast('Disconnected from server.', 'warning');
+                setLoading('createBtn', false);
+                setLoading('joinBtn', false);
+                setLoading('uploadBtn', false);
+            }
+        });
+
+        client.on('error', (payload) => {
+            const msg = (payload && payload.message) || 'Server error';
+            const lobby = document.getElementById('lobby');
+            if (lobby.classList.contains('hidden')) setInlineError('callError', msg);
+            else setInlineError('lobbyError', msg);
+            setLoading('createBtn', false);
+            setLoading('joinBtn', false);
+            setLoading('uploadBtn', false);
+            showToast(msg, 'error');
+        });
+
+        /* ---------- connect ---------- */
+        try {
+            await client.connect();   // <-- REQUIRED: wait for the socket to open
+            isConnected = true;
+            setConn('connected');
+            showToast('Connected to server.', 'success', 2500);
+        } catch (error) {
+            isConnected = false;
+            setConn('disconnected');
+            console.error('Lynkio connection error:', error);
+            showToast('Unable to connect to server.', 'error');
         }
-    };
-    reader.onerror = () => {
-        setLoading('uploadBtn', false);
-        setInlineError('callError', 'Could not read the selected file.');
-    };
-    reader.readAsArrayBuffer(file);
-}
-/* -------------------------------------------------------
-   MICROPHONE CAPTURE
-------------------------------------------------------- */
-async function startMic() {
-    if (micStarted) return;
-    try {
-        micStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                channelCount: 1,
-                echoCancellation: true,
-                noiseSuppression: true
-            }
-        });
-        audioContext = new AudioContext({
-            sampleRate: 24000
-        });
-        await audioContext.resume();
-        micSource = audioContext.createMediaStreamSource(micStream);
-        micProcessor = audioContext.createScriptProcessor(
-            4096,
-            1,
-            1
-        );
-        silentGain = audioContext.createGain();
-        silentGain.gain.value = 0;
-        micProcessor.onaudioprocess = (event) => {
-            if (!micStarted || !isConnected) return;
-            const input = event.inputBuffer.getChannelData(0);
-            const pcm16 = new Int16Array(input.length);
-            for (let i = 0; i < input.length; i++) {
-                const sample = Math.max(-1, Math.min(1, input[i]));
-                pcm16[i] = sample < 0
-                    ? sample * 32768
-                    : sample * 32767;
-            }
+    }
+
+    // Kick off the client once the DOM is ready.
+    document.addEventListener('DOMContentLoaded', initClient);
+
+    /* =====================================================
+       LOBBY ACTIONS
+    ===================================================== */
+    function requireConnection() {
+        if (!isConnected) {
+            showToast('Waiting for the server connection…', 'warning');
+            return false;
+        }
+        return true;
+    }
+
+    function createRoom() {
+        if (!requireConnection()) return;
+        const id = document.getElementById('roomInput').value.trim();
+        if (!id) {
+            setInlineError('lobbyError', 'Please enter a room code.');
+            document.getElementById('roomInput').classList.add('invalid');
+            return;
+        }
+        setInlineError('lobbyError', '');
+        document.getElementById('roomInput').classList.remove('invalid');
+        setLoading('createBtn', true);
+        client.emit('create_room', { room_id: id });
+    }
+
+    function joinRoom() {
+        if (!requireConnection()) return;
+        const id = document.getElementById('roomInput').value.trim();
+        if (!id) {
+            setInlineError('lobbyError', 'Please enter a room code.');
+            document.getElementById('roomInput').classList.add('invalid');
+            return;
+        }
+        setInlineError('lobbyError', '');
+        document.getElementById('roomInput').classList.remove('invalid');
+        setLoading('joinBtn', true);
+        client.emit('join_room', { room_id: id });
+    }
+
+    /* =====================================================
+       CALL VIEW
+    ===================================================== */
+    async function enterCall() {
+        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('callUI').classList.remove('hidden');
+        document.getElementById('roomCode').textContent = roomId;
+
+        const badge = document.getElementById('roleBadge');
+        badge.textContent = isHost ? 'Host' : 'Joiner';
+        badge.classList.toggle('host', isHost);
+
+        if (isHost) {
+            document.getElementById('uploadBox').classList.remove('hidden');
+            document.getElementById('closeRoomBtn').style.display = 'block';
+        } else {
+            document.getElementById('uploadBox').classList.add('hidden');
+            document.getElementById('closeRoomBtn').style.display = 'none';
+        }
+        await startMic();
+    }
+
+    function leaveCall() {
+        stopMic();
+        try { if (client && typeof client.close === 'function') client.close(); } catch (_) {}
+        window.location.reload();
+    }
+
+    function deleteRoom() {
+        if (!confirm('Close the room for everyone?')) return;
+        client.emit('delete_room', { room_id: roomId });
+    }
+
+    /* =====================================================
+       VOICE REFERENCE UPLOAD
+    ===================================================== */
+    function onFileSelected() {
+        const file = document.getElementById('voiceFile').files[0];
+        document.getElementById('fileName').textContent =
+            file ? file.name : 'No file selected';
+    }
+
+    function uploadVoice() {
+        if (!requireConnection()) return;
+        const file = document.getElementById('voiceFile').files[0];
+        if (!file) {
+            setInlineError('callError', 'Select a WAV file before uploading.');
+            return;
+        }
+        setInlineError('callError', '');
+        setLoading('uploadBtn', true);
+
+        const reader = new FileReader();
+        reader.onload = () => {
             try {
-                client.sendBinary(
-                    'raw_mic',
-                    new Uint8Array(pcm16.buffer)
-                );
-            } catch (error) {
-                console.error('Microphone transmission error:', error);
+                // Correct Lynkio method: sendBinaryEvent
+                client.sendBinaryEvent('voice_reference', new Uint8Array(reader.result));
+            } catch (err) {
+                console.error('Voice upload error:', err);
+                setLoading('uploadBtn', false);
+                setInlineError('callError', 'Voice upload failed.');
             }
         };
-        micSource.connect(micProcessor);
-        micProcessor.connect(silentGain);
-        silentGain.connect(audioContext.destination);
-        micStarted = true;
-    } catch (error) {
-        console.error('Microphone error:', error);
-        showToast(
-            'Microphone access failed: ' + error.message,
-            'error'
-        );
+        reader.onerror = () => {
+            setLoading('uploadBtn', false);
+            setInlineError('callError', 'Could not read the selected file.');
+        };
+        reader.readAsArrayBuffer(file);
     }
-}
-/* -------------------------------------------------------
-   STOP MICROPHONE
-------------------------------------------------------- */
-function stopMic() {
-    micStarted = false;
-    if (micProcessor) {
-        micProcessor.disconnect();
-        micProcessor = null;
+
+    /* =====================================================
+       MIC CAPTURE
+    ===================================================== */
+    async function startMic() {
+        if (micStarted) return;
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                }
+            });
+            audioCtx = new AudioContext({ sampleRate: 24000 });
+            await audioCtx.resume();
+
+            micSource = audioCtx.createMediaStreamSource(micStream);
+            micProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            silentGain = audioCtx.createGain();
+            silentGain.gain.value = 0;
+
+            micProcessor.onaudioprocess = (event) => {
+                if (!micStarted || !isConnected) return;
+                const input = event.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    pcm16[i] = s < 0 ? s * 32768 : s * 32767;
+                }
+                try {
+                    client.sendBinaryEvent('raw_mic', new Uint8Array(pcm16.buffer));
+                } catch (err) {
+                    console.error('Mic transmission error:', err);
+                }
+            };
+
+            micSource.connect(micProcessor);
+            micProcessor.connect(silentGain);
+            silentGain.connect(audioCtx.destination);
+            micStarted = true;
+        } catch (err) {
+            console.error('Microphone error:', err);
+            showToast('Microphone access failed: ' + err.message, 'error');
+        }
     }
-    if (micSource) {
-        micSource.disconnect();
-        micSource = null;
+
+    function stopMic() {
+        micStarted = false;
+        if (micProcessor) { micProcessor.disconnect(); micProcessor = null; }
+        if (micSource)    { micSource.disconnect();    micSource = null; }
+        if (silentGain)   { silentGain.disconnect();   silentGain = null; }
+        if (micStream)    { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+        if (audioCtx)     { audioCtx.close(); audioCtx = null; }
     }
-    if (silentGain) {
-        silentGain.disconnect();
-        silentGain = null;
+
+    /* =====================================================
+       PCM PLAYBACK
+    ===================================================== */
+    function playPCM(data) {
+        if (!data) return;
+        if (!audioCtx || audioCtx.state === 'closed') {
+            audioCtx = new AudioContext({ sampleRate: 24000 });
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        let pcm;
+        if (data instanceof ArrayBuffer) {
+            pcm = new Int16Array(data);
+        } else if (ArrayBuffer.isView(data)) {
+            pcm = new Int16Array(data.buffer, data.byteOffset,
+                                 Math.floor(data.byteLength / 2));
+        } else {
+            return;
+        }
+        if (!pcm.length) return;
+
+        const buffer = audioCtx.createBuffer(1, pcm.length, 24000);
+        const ch = buffer.getChannelData(0);
+        for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(audioCtx.destination);
+        src.start();
     }
-    if (micStream) {
-        micStream.getTracks().forEach(track => track.stop());
-        micStream = null;
-    }
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-    }
-}
-/* -------------------------------------------------------
-   PCM16 AUDIO PLAYBACK
-------------------------------------------------------- */
-function playPCM(data) {
-    if (!data) return;
-    if (!audioContext || audioContext.state === 'closed') {
-        audioContext = new AudioContext({
-            sampleRate: 24000
-        });
-    }
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
-    let pcm;
-    if (data instanceof ArrayBuffer) {
-        pcm = new Int16Array(data);
-    } else if (ArrayBuffer.isView(data)) {
-        pcm = new Int16Array(
-            data.buffer,
-            data.byteOffset,
-            Math.floor(data.byteLength / 2)
-        );
-    } else {
-        console.error('Unsupported PCM format:', data);
-        return;
-    }
-    if (!pcm.length) return;
-    const buffer = audioContext.createBuffer(
-        1,
-        pcm.length,
-        24000
-    );
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < pcm.length; i++) {
-        channel[i] = pcm[i] / 32768;
-    }
-    const source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioContext.destination);
-    source.start();
-}
     </script>
 </body>
 </html>
