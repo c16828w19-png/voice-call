@@ -5,202 +5,101 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>{{ title }}</title>
 <style>
-:root {
-  --bg: #0f0f0f;
-  --panel: #1f1f1f;
-  --panel-2: #2a2a2a;
-  --border: #3a3a3a;
-  --accent: #0e72ed;
-  --accent-hover: #2681f2;
-  --text: #eaeaea;
-  --muted: #9a9a9a;
-  --danger: #e03e3e;
-  --success: #23a55a;
-  --warning: #f0b232;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-  height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--bg); color: var(--text); overflow: hidden;
-}
-button { font-family: inherit; cursor: pointer; }
-
-.header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px; background: var(--panel);
-  border-bottom: 1px solid var(--border);
-}
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1rem; }
-.brand-icon {
-  width: 28px; height: 28px; border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), #6c5ce7);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; font-weight: 800; color: #fff;
-}
-.conn-badge {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 12px; border-radius: 999px;
-  background: var(--panel-2); font-size: 0.75rem; color: var(--muted);
-}
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); }
-.dot.connected { background: var(--success); }
-.dot.disconnected { background: var(--danger); }
-.dot.connecting { animation: pulse 1.2s infinite; }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-.main { display: flex; height: calc(100vh - 53px); }
-
-/* Lobby */
-.lobby { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.lobby-card {
-  width: 100%; max-width: 420px;
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 16px; padding: 32px 28px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-}
-.lobby-card h1 { font-size: 1.35rem; margin-bottom: 6px; font-weight: 700; }
-.lobby-card .subtitle { color: var(--muted); font-size: 0.875rem; margin-bottom: 22px; }
-.field-label {
-  display: block; font-size: 0.72rem; font-weight: 600;
-  color: var(--muted); margin-bottom: 6px;
-  text-transform: uppercase; letter-spacing: 0.06em;
-}
-.room-input {
-  width: 100%; padding: 12px 14px;
-  border-radius: 10px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--text);
-  font-size: 0.95rem; outline: none;
-  transition: border-color 0.15s;
-}
-.room-input:focus { border-color: var(--accent); }
-.room-input.invalid { border-color: var(--danger); }
-.room-hint { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
-.error-msg {
-  color: var(--danger); font-size: 0.8rem; margin-top: 10px;
-  min-height: 1.2em; opacity: 0; transition: opacity 0.2s;
-}
-.error-msg.visible { opacity: 1; }
-.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
-.btn {
-  padding: 12px; border-radius: 10px; border: none;
-  font-weight: 600; font-size: 0.9rem;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: background 0.15s, opacity 0.15s;
-}
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-secondary {
-  background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--border);
-}
-.btn-secondary:hover:not(:disabled) { background: #333; }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.spinner {
-  width: 13px; height: 13px;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-top-color: #fff; border-radius: 50%;
-  animation: spin 0.7s linear infinite; display: none;
-}
-.btn.loading .spinner { display: inline-block; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Call */
-.call-stage { flex: 1; display: flex; flex-direction: column; }
-.upload-banner {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 20px; background: var(--panel-2);
-  border-bottom: 1px solid var(--border); font-size: 0.82rem;
-}
-.upload-banner input[type="file"] { display: none; }
-.upload-btn {
-  padding: 6px 14px; border-radius: 6px;
-  background: var(--accent); color: #fff; border: none;
-  font-size: 0.78rem; font-weight: 600;
-}
-.upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.upload-filename { color: var(--muted); font-size: 0.78rem; }
-
-.stage {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 48px; padding: 40px;
-  background: radial-gradient(circle at 50% 40%, #1a1a1a 0%, #0a0a0a 100%);
-}
-.participant {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  transition: transform 0.15s;
-}
-.participant.speaking { transform: scale(1.03); }
-.avatar {
-  width: 140px; height: 140px; border-radius: 50%;
-  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 2.8rem; font-weight: 700;
-  border: 3px solid var(--border);
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.participant.speaking .avatar {
-  border-color: var(--success);
-  box-shadow: 0 0 0 4px rgba(35,165,90,0.2), 0 0 30px rgba(35,165,90,0.3);
-}
-.participant.empty .avatar {
-  border-style: dashed; color: var(--muted); background: transparent;
-}
-.participant .pname { font-size: 0.95rem; font-weight: 600; }
-.participant .prole {
-  font-size: 0.72rem; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 0.06em;
-}
-.participant .status { font-size: 0.75rem; color: var(--success); min-height: 1em; }
-
-.control-bar {
-  display: flex; align-items: center; justify-content: center;
-  gap: 20px; padding: 16px; background: var(--panel);
-  border-top: 1px solid var(--border);
-}
-.ctrl-btn {
-  width: 52px; height: 52px; border-radius: 50%;
-  border: none; background: #333; color: var(--text);
-  font-size: 1.2rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s;
-}
-.ctrl-btn:hover:not(:disabled) { background: #444; }
-.ctrl-btn.active { background: var(--accent); }
-.ctrl-btn.danger { background: var(--danger); }
-.ctrl-btn.danger:hover { background: #c93030; }
-.ctrl-label {
-  font-size: 0.7rem; color: var(--muted);
-  text-align: center; margin-top: 4px;
-}
-
-.toasts {
-  position: fixed; bottom: 24px; right: 24px;
-  display: flex; flex-direction: column; gap: 10px; z-index: 999;
-}
-.toast {
-  padding: 12px 16px; border-radius: 10px;
-  background: var(--panel); color: var(--text);
-  border-left: 3px solid var(--accent);
-  font-size: 0.85rem; min-width: 240px; max-width: 360px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  opacity: 0; transform: translateX(20px);
-  transition: opacity 0.25s, transform 0.25s;
-}
-.toast.show { opacity: 1; transform: translateX(0); }
-.toast.error { border-left-color: var(--danger); }
-.toast.success { border-left-color: var(--success); }
-.toast.warning { border-left-color: var(--warning); }
-
-.hidden { display: none !important; }
+:root{--bg:#0f0f0f;--panel:#1f1f1f;--panel-2:#2a2a2a;--border:#3a3a3a;--accent:#0e72ed;
+--accent-hover:#2681f2;--text:#eaeaea;--muted:#9a9a9a;--danger:#e03e3e;--success:#23a55a;--warning:#f0b232;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);
+color:var(--text);overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+.header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
+background:var(--panel);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1rem}
+.brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#6c5ce7);
+display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;color:#fff}
+.conn-badge{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;
+background:var(--panel-2);font-size:.75rem;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warning)}
+.dot.connected{background:var(--success)}
+.dot.disconnected{background:var(--danger)}
+.dot.connecting{animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.main{display:flex;height:calc(100vh - 53px)}
+.lobby{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+.lobby-card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--border);
+border-radius:16px;padding:32px 28px;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.lobby-card h1{font-size:1.35rem;margin-bottom:6px;font-weight:700}
+.lobby-card .subtitle{color:var(--muted);font-size:.875rem;margin-bottom:22px}
+.field-label{display:block;font-size:.72rem;font-weight:600;color:var(--muted);margin-bottom:6px;
+text-transform:uppercase;letter-spacing:.06em}
+.room-input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);
+background:var(--bg);color:var(--text);font-size:.95rem;outline:none;transition:border-color .15s}
+.room-input:focus{border-color:var(--accent)}
+.room-input.invalid{border-color:var(--danger)}
+.room-hint{font-size:.72rem;color:var(--muted);margin-top:6px}
+.error-msg{color:var(--danger);font-size:.8rem;margin-top:10px;min-height:1.2em;
+opacity:0;transition:opacity .2s}
+.error-msg.visible{opacity:1}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.btn{padding:12px;border-radius:10px;border:none;font-weight:600;font-size:.9rem;
+display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,opacity .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--accent-hover)}
+.btn-secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover:not(:disabled){background:#333}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+border-radius:50%;animation:spin .7s linear infinite;display:none}
+.btn.loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.call-stage{flex:1;display:flex;flex-direction:column}
+.upload-banner{display:flex;align-items:center;gap:12px;padding:10px 20px;background:var(--panel-2);
+border-bottom:1px solid var(--border);font-size:.82rem;flex-wrap:wrap}
+.upload-banner input[type="file"]{display:none}
+.upload-btn{padding:6px 14px;border-radius:6px;background:var(--accent);color:#fff;border:none;
+font-size:.78rem;font-weight:600}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed}
+.upload-filename{color:var(--muted);font-size:.78rem}
+.clone-status{font-size:.72rem;padding:3px 8px;border-radius:6px;background:rgba(35,165,90,.15);
+color:#86efac;font-weight:600}
+.clone-status.off{background:rgba(240,178,50,.15);color:#fcd34d}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;gap:48px;padding:40px;
+background:radial-gradient(circle at 50% 40%,#1a1a1a 0%,#0a0a0a 100%)}
+.participant{display:flex;flex-direction:column;align-items:center;gap:12px;transition:transform .15s}
+.participant.speaking{transform:scale(1.03)}
+.avatar{width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,#2a2a2a,#1a1a1a);
+display:flex;align-items:center;justify-content:center;font-size:2.8rem;font-weight:700;
+border:3px solid var(--border);transition:border-color .15s,box-shadow .15s}
+.participant.speaking .avatar{border-color:var(--success);
+box-shadow:0 0 0 4px rgba(35,165,90,.2),0 0 30px rgba(35,165,90,.3)}
+.participant.empty .avatar{border-style:dashed;color:var(--muted);background:transparent}
+.participant .pname{font-size:.95rem;font-weight:600}
+.participant .prole{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.participant .status{font-size:.75rem;color:var(--success);min-height:1em}
+.control-bar{display:flex;align-items:center;justify-content:center;gap:20px;padding:16px;
+background:var(--panel);border-top:1px solid var(--border)}
+.ctrl-btn{width:52px;height:52px;border-radius:50%;border:none;background:#333;color:var(--text);
+font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.ctrl-btn:hover:not(:disabled){background:#444}
+.ctrl-btn.active{background:var(--accent)}
+.ctrl-btn.danger{background:var(--danger)}
+.ctrl-btn.danger:hover{background:#c93030}
+.ctrl-label{font-size:.7rem;color:var(--muted);text-align:center;margin-top:4px}
+.toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:999}
+.toast{padding:12px 16px;border-radius:10px;background:var(--panel);color:var(--text);
+border-left:3px solid var(--accent);font-size:.85rem;min-width:240px;max-width:360px;
+box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;transform:translateX(20px);
+transition:opacity .25s,transform .25s}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.error{border-left-color:var(--danger)}
+.toast.success{border-left-color:var(--success)}
+.toast.warning{border-left-color:var(--warning)}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="brand">
-    <div class="brand-icon">V</div>
-    VoiceClone
-  </div>
+  <div class="brand"><div class="brand-icon">V</div>VoiceClone</div>
   <div class="conn-badge">
     <span class="dot connecting" id="connDot"></span>
     <span id="connText">Connecting…</span>
@@ -208,18 +107,15 @@ button { font-family: inherit; cursor: pointer; }
 </div>
 
 <div class="main">
-  <!-- Lobby -->
   <div class="lobby" id="lobby">
     <div class="lobby-card">
       <h1>Start or join a call</h1>
       <p class="subtitle">The host's voice is cloned in real time for the joiner.</p>
-
       <label class="field-label" for="roomInput">Room code</label>
       <input type="text" id="roomInput" class="room-input"
              placeholder="e.g. standup-2024" autocomplete="off" maxlength="64" />
       <div class="room-hint">3–64 characters · letters, digits, - or _</div>
       <div class="error-msg" id="lobbyError"></div>
-
       <div class="btn-row">
         <button class="btn btn-primary" id="createBtn" onclick="createRoom()">
           <span class="spinner"></span><span>Create</span>
@@ -231,11 +127,11 @@ button { font-family: inherit; cursor: pointer; }
     </div>
   </div>
 
-  <!-- Call -->
   <div class="call-stage hidden" id="callStage">
     <div class="upload-banner hidden" id="uploadBanner">
       <span>Clone voice:</span>
-      <input type="file" id="voiceFile" accept="audio*/" onchange="onFileSelected()" />
+      <span class="clone-status" id="cloneStatus">checking…</span>
+      <input type="file" id="voiceFile" accept="audio/*" onchange="onFileSelected()" />
       <label for="voiceFile" class="upload-btn">Choose file</label>
       <span class="upload-filename" id="uploadFilename">none</span>
       <button class="upload-btn" id="uploadBtn" onclick="uploadVoice()" disabled>Apply</button>
@@ -258,15 +154,15 @@ button { font-family: inherit; cursor: pointer; }
 
     <div class="control-bar">
       <div>
-        <button class="ctrl-btn active" id="muteBtn" onclick="toggleMute()" title="Mute">🎤</button>
+        <button class="ctrl-btn active" id="muteBtn" onclick="toggleMute()">🎤</button>
         <div class="ctrl-label" id="muteLabel">Mute</div>
       </div>
       <div>
-        <button class="ctrl-btn danger" onclick="leaveCall()" title="Leave">📞</button>
+        <button class="ctrl-btn danger" onclick="leaveCall()">📞</button>
         <div class="ctrl-label">Leave</div>
       </div>
       <div id="closeWrap" class="hidden">
-        <button class="ctrl-btn danger" onclick="closeRoom()" title="Close room">✖</button>
+        <button class="ctrl-btn danger" onclick="closeRoom()">✖</button>
         <div class="ctrl-label">Close</div>
       </div>
     </div>
@@ -277,385 +173,303 @@ button { font-family: inherit; cursor: pointer; }
 
 <script src="/lynkio/client.js"></script>
 <script>
-/* =================================================================
-   HELPERS
-================================================================= */
-function toast(msg, type = 'info', ms = 3500) {
-  const c = document.getElementById('toasts');
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.textContent = msg;
-  c.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('show'));
-  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, ms);
+/* ---------- helpers ---------- */
+function toast(msg, type='info', ms=3500){
+  const c=document.getElementById('toasts'),el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;c.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),250)},ms);
 }
-function setConn(state) {
-  document.getElementById('connDot').className = 'dot ' + state;
-  document.getElementById('connText').textContent =
-    state === 'connected' ? 'Connected' :
-    state === 'disconnected' ? 'Disconnected' : 'Connecting…';
+function setConn(s){
+  document.getElementById('connDot').className='dot '+s;
+  document.getElementById('connText').textContent=
+    s==='connected'?'Connected':s==='disconnected'?'Disconnected':'Connecting…';
 }
-function setLobbyError(msg) {
-  const el = document.getElementById('lobbyError');
-  el.textContent = msg || '';
-  el.classList.toggle('visible', !!msg);
+function setLobbyError(m){
+  const el=document.getElementById('lobbyError');
+  el.textContent=m||'';el.classList.toggle('visible',!!m);
 }
-function setBtnLoading(id, loading) {
-  const btn = document.getElementById(id);
-  if (!btn) return;
-  btn.classList.toggle('loading', loading);
-  btn.disabled = loading;
+function setBtnLoading(id,loading){
+  const btn=document.getElementById(id);if(!btn)return;
+  btn.classList.toggle('loading',loading);btn.disabled=loading;
 }
-function clearAllLoading() {
-  setBtnLoading('createBtn', false);
-  setBtnLoading('joinBtn', false);
-  setBtnLoading('uploadBtn', false);
+function clearAllLoading(){
+  ['createBtn','joinBtn','uploadBtn'].forEach(id=>setBtnLoading(id,false));
 }
 
-/* =================================================================
-   STATE
-================================================================= */
-let client = null;
-let connected = false;
-let roomId = null;
-let isHost = false;
-let micOn = true;
-let audioCtx = null;
-let micStream = null;
-let micProcessor = null;
-let silentGain = null;
-let hostSpeakTimer = null;
-let joinerSpeakTimer = null;
-let uploadTimeout = null;
-let joinTimeout = null;
+/* ---------- state ---------- */
+let client=null,connected=false,roomId=null,isHost=false,micOn=true;
+let audioCtx=null,micStream=null,micProcessor=null,silentGain=null;
+let hostSpeakTimer=null,joinerSpeakTimer=null;
+let uploadTimeout=null,joinTimeout=null;
+let clonerReady=false;
 
-/* =================================================================
-   INIT
-================================================================= */
-async function init() {
+/* ---------- init ---------- */
+async function init(){
   setConn('connecting');
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  client = new LynkClient(`${proto}//${location.host}`);
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  client=new LynkClient(`${proto}//${location.host}`);
 
-  /* -------- CONTROL events (client.emit ↔ @app.on) -------- */
-  client.on('room_created', (d) => {
-    roomId = d.room_id;
-    isHost = true;
-    clearAllLoading();
-    enterCall();
-    toast(`Room "${roomId}" created — waiting for joiner.`, 'success');
+  client.on('room_created',(d)=>{
+    roomId=d.room_id;isHost=true;clonerReady=!!d.cloner_ready;
+    clearAllLoading();enterCall();
+    toast(`Room "${roomId}" created — waiting for joiner.`,'success');
   });
-
-  client.on('room_joined', (d) => {
+  client.on('room_joined',(d)=>{
     clearTimeout(joinTimeout);
-    roomId = d.room_id;
-    isHost = false;
-    clearAllLoading();
-    enterCall();
-    toast('Joined the room.', 'success');
+    roomId=d.room_id;isHost=false;clearAllLoading();enterCall();
+    toast('Joined the room.','success');
   });
-
-  client.on('joiner_connected', () => {
+  client.on('joiner_connected',()=>{
     document.getElementById('joinerP').classList.remove('empty');
-    document.getElementById('joinerAvatar').textContent = 'J';
-    document.getElementById('joinerName').textContent = 'Joiner';
-    toast('Joiner connected.', 'success');
+    document.getElementById('joinerAvatar').textContent='J';
+    document.getElementById('joinerName').textContent='Joiner';
+    toast('Joiner connected.','success');
   });
-
-  client.on('joiner_left', () => {
+  client.on('joiner_left',()=>{
     document.getElementById('joinerP').classList.add('empty');
-    document.getElementById('joinerAvatar').textContent = '?';
-    document.getElementById('joinerName').textContent = 'Waiting…';
-    toast('Joiner left.', 'warning');
+    document.getElementById('joinerAvatar').textContent='?';
+    document.getElementById('joinerName').textContent='Waiting…';
+    toast('Joiner left.','warning');
   });
-
-  client.on('voice_ready', (d) => {
-    clearTimeout(uploadTimeout);
-    setBtnLoading('uploadBtn', false);
-    toast(`Clone voice applied (${(d.duration || 0).toFixed(1)}s).`, 'success');
+  client.on('voice_ready',(d)=>{
+    clearTimeout(uploadTimeout);setBtnLoading('uploadBtn',false);
+    toast(`Clone voice applied (${(d.duration||0).toFixed(1)}s).`,'success');
   });
-
-  client.on('room_closed', () => {
-    toast('The room was closed.', 'warning');
-    cleanupAudio();
-    connected = false;
-    try {
-      client.shouldReconnect = false;
-      client.close();
-    } catch (_) {}
+  client.on('room_closed',()=>{
+    toast('The room was closed.','warning');
+    cleanupAudio();connected=false;
+    try{client.shouldReconnect=false;client.close();}catch(_){}
     setConn('disconnected');
-    setTimeout(() => location.reload(), 1200);
+    setTimeout(()=>location.reload(),1200);
+  });
+  client.on('error',(d)=>{
+    clearTimeout(uploadTimeout);clearTimeout(joinTimeout);clearAllLoading();
+    const msg=(d&&d.message)||'Server error';
+    if(document.getElementById('lobby').classList.contains('hidden')) toast(msg,'error');
+    else setLobbyError(msg);
   });
 
-  client.on('error', (d) => {
-    clearTimeout(uploadTimeout);
-    clearTimeout(joinTimeout);
-    clearAllLoading();
-    const msg = (d && d.message) || 'Server error';
-    if (document.getElementById('lobby').classList.contains('hidden')) {
-      toast(msg, 'error');
-    } else {
-      setLobbyError(msg);
-    }
+  client.onBinaryEvent('cloned_audio',(payload)=>{
+    flagSpeaking('host');playPCM(payload);
   });
-
-  /* -------- BINARY events (onBinaryEvent ↔ send_binary_event) -------- */
-  client.onBinaryEvent('cloned_audio', (payload) => {
-    flagSpeaking('host');
-    playPCM(payload);
-  });
-  client.onBinaryEvent('raw_audio', (payload) => {
-    if (isHost) flagSpeaking('joiner');
-    else flagSpeaking('host');
+  client.onBinaryEvent('raw_audio',(payload)=>{
+    if(isHost) flagSpeaking('joiner'); else flagSpeaking('host');
     playPCM(payload);
   });
 
-  /* -------- connect -------- */
-  try {
+  try{
     await client.connect();
-    // Prevent auto-reconnect loops: if the socket drops, we stop and let the user refresh.
-    client.shouldReconnect = false;
-    connected = true;
+    client.shouldReconnect=false;
+    connected=true;
     setConn('connected');
-  } catch (e) {
-    connected = false;
-    setConn('disconnected');
-    toast('Could not connect to server.', 'error');
-    console.error('connect error:', e);
+    if(client.ws){
+      client.ws.addEventListener('close',(ev)=>{
+        if(ev.code===1009) toast('Server rejected payload (too large).','error');
+        else if(ev.code!==1000) toast(`Disconnected (code ${ev.code}). Refresh to reconnect.`,'warning');
+        setConn('disconnected');clearAllLoading();
+      });
+    }
+  }catch(e){
+    connected=false;setConn('disconnected');
+    toast('Could not connect to server.','error');console.error(e);
   }
 }
+document.addEventListener('DOMContentLoaded',init);
+window.addEventListener('beforeunload',()=>{try{cleanupAudio();client&&client.close();}catch(_){}});
 
-document.addEventListener('DOMContentLoaded', init);
-
-window.addEventListener('beforeunload', () => {
-  try { cleanupAudio(); client && client.close(); } catch (_) {}
-});
-
-/* =================================================================
-   LOBBY
-================================================================= */
-function validateRoomId(id) {
-  if (!id) return 'Enter a room code.';
-  if (!/^[A-Za-z0-9_-]{3,64}$/.test(id))
-    return 'Use 3–64 letters, digits, - or _ only.';
+/* ---------- lobby ---------- */
+function validateRoomId(id){
+  if(!id) return 'Enter a room code.';
+  if(!/^[A-Za-z0-9_-]{3,64}$/.test(id)) return 'Use 3–64 letters, digits, - or _ only.';
   return null;
 }
-
-function createRoom() {
-  if (!connected) return toast('Not connected yet.', 'warning');
-  const id = document.getElementById('roomInput').value.trim();
-  const err = validateRoomId(id);
-  if (err) {
-    document.getElementById('roomInput').classList.add('invalid');
-    return setLobbyError(err);
-  }
+function createRoom(){
+  if(!connected) return toast('Not connected yet.','warning');
+  const id=document.getElementById('roomInput').value.trim();
+  const err=validateRoomId(id);
+  if(err){document.getElementById('roomInput').classList.add('invalid');return setLobbyError(err);}
   document.getElementById('roomInput').classList.remove('invalid');
-  setLobbyError('');
-  setBtnLoading('createBtn', true);
-  client.emit('create_room', { room_id: id });
+  setLobbyError('');setBtnLoading('createBtn',true);
+  client.emit('create_room',{room_id:id});
 }
-
-function joinRoom() {
-  if (!connected) return toast('Not connected yet.', 'warning');
-  const id = document.getElementById('roomInput').value.trim();
-  const err = validateRoomId(id);
-  if (err) {
-    document.getElementById('roomInput').classList.add('invalid');
-    return setLobbyError(err);
-  }
+function joinRoom(){
+  if(!connected) return toast('Not connected yet.','warning');
+  const id=document.getElementById('roomInput').value.trim();
+  const err=validateRoomId(id);
+  if(err){document.getElementById('roomInput').classList.add('invalid');return setLobbyError(err);}
   document.getElementById('roomInput').classList.remove('invalid');
-  setLobbyError('');
-  setBtnLoading('joinBtn', true);
-
-  // Safety timeout — if server never replies, clear spinner
-  joinTimeout = setTimeout(() => {
-    if (document.getElementById('joinBtn').classList.contains('loading')) {
-      setBtnLoading('joinBtn', false);
-      toast('Join timed out. Check the room code and try again.', 'error');
+  setLobbyError('');setBtnLoading('joinBtn',true);
+  joinTimeout=setTimeout(()=>{
+    if(document.getElementById('joinBtn').classList.contains('loading')){
+      setBtnLoading('joinBtn',false);
+      toast('Join timed out.','error');
     }
-  }, 10000);
-
-  client.emit('join_room', { room_id: id });
+  },10000);
+  client.emit('join_room',{room_id:id});
 }
 
-/* =================================================================
-   CALL VIEW
-================================================================= */
-function enterCall() {
+/* ---------- call ---------- */
+function enterCall(){
   document.getElementById('lobby').classList.add('hidden');
   document.getElementById('callStage').classList.remove('hidden');
-
-  if (isHost) {
+  if(isHost){
     document.getElementById('hostP').classList.remove('empty');
-    document.getElementById('hostAvatar').textContent = 'H';
-    document.getElementById('hostName').textContent = 'You (Host)';
+    document.getElementById('hostAvatar').textContent='H';
+    document.getElementById('hostName').textContent='You (Host)';
     document.getElementById('uploadBanner').classList.remove('hidden');
     document.getElementById('closeWrap').classList.remove('hidden');
-  } else {
+    const cs=document.getElementById('cloneStatus');
+    if(clonerReady){cs.textContent='ready';cs.classList.remove('off');}
+    else{cs.textContent='unavailable (pass-through)';cs.classList.add('off');}
+  }else{
     document.getElementById('joinerP').classList.remove('empty');
-    document.getElementById('joinerAvatar').textContent = 'J';
-    document.getElementById('joinerName').textContent = 'You (Joiner)';
+    document.getElementById('joinerAvatar').textContent='J';
+    document.getElementById('joinerName').textContent='You (Joiner)';
     document.getElementById('hostP').classList.remove('empty');
-    document.getElementById('hostAvatar').textContent = 'H';
-    document.getElementById('hostName').textContent = 'Host';
+    document.getElementById('hostAvatar').textContent='H';
+    document.getElementById('hostName').textContent='Host';
   }
-
   startMic();
 }
-
-function leaveCall() {
-  if (roomId) client.emit('leave_room', { room_id: roomId });
+function leaveCall(){
+  if(roomId) client.emit('leave_room',{room_id:roomId});
   cleanupAudio();
-  try {
-    client.shouldReconnect = false;
-    client.close();
-  } catch (_) {}
+  try{client.shouldReconnect=false;client.close();}catch(_){}
   location.reload();
 }
+function closeRoom(){ if(roomId) client.emit('delete_room',{room_id:roomId}); }
 
-function closeRoom() {
-  if (!roomId) return;
-  client.emit('delete_room', { room_id: roomId });
+/* ---------- voice upload ---------- */
+function onFileSelected(){
+  const f=document.getElementById('voiceFile').files[0];
+  document.getElementById('uploadFilename').textContent=f?f.name:'none';
+  document.getElementById('uploadBtn').disabled=!f;
 }
-
-/* =================================================================
-   VOICE UPLOAD — binary
-================================================================= */
-function onFileSelected() {
-  const f = document.getElementById('voiceFile').files[0];
-  document.getElementById('uploadFilename').textContent = f ? f.name : 'none';
-  document.getElementById('uploadBtn').disabled = !f;
-}
-
-function uploadVoice() {
-  const file = document.getElementById('voiceFile').files[0];
-  if (!file) return toast('Choose a file first.', 'warning');
-  setBtnLoading('uploadBtn', true);
-
-  uploadTimeout = setTimeout(() => {
-    if (document.getElementById('uploadBtn').classList.contains('loading')) {
-      setBtnLoading('uploadBtn', false);
-      toast('Upload timed out. Try a smaller or valid WAV file.', 'error');
+async function uploadVoice(){
+  const file=document.getElementById('voiceFile').files[0];
+  if(!file) return toast('Choose a file first.','warning');
+  setBtnLoading('uploadBtn',true);
+  uploadTimeout=setTimeout(()=>{
+    if(document.getElementById('uploadBtn').classList.contains('loading')){
+      setBtnLoading('uploadBtn',false);
+      toast('Server did not respond. Check connection status.','error');
     }
-  }, 15000);
+  },20000);
+  try{
+    const rawBuf=await file.arrayBuffer();
+    const tempCtx=new AudioContext();
+    const decoded=await tempCtx.decodeAudioData(rawBuf);
+    await tempCtx.close();
+    if(!decoded||decoded.length===0) throw new Error('Audio file could not be decoded');
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    // sendBinaryEvent → server @app.on_binary_event("voice_reference")
-    client.sendBinaryEvent('voice_reference', new Uint8Array(reader.result));
-  };
-  reader.onerror = () => {
-    clearTimeout(uploadTimeout);
-    setBtnLoading('uploadBtn', false);
-    toast('Could not read file.', 'error');
-  };
-  reader.readAsArrayBuffer(file);
+    const MAX_SEC=10,targetRate=24000;
+    const trimmedSamples=Math.min(decoded.length,Math.floor(MAX_SEC*decoded.sampleRate));
+    const outLen=Math.ceil(trimmedSamples/decoded.sampleRate*targetRate);
+    const offline=new OfflineAudioContext(1,outLen,targetRate);
+    const source=offline.createBufferSource();
+    source.buffer=decoded;source.connect(offline.destination);
+    source.start(0,0,trimmedSamples/decoded.sampleRate);
+    const rendered=await offline.startRendering();
+    const floatData=rendered.getChannelData(0);
+    const int16=new Int16Array(floatData.length);
+    for(let i=0;i<floatData.length;i++){
+      const s=Math.max(-1,Math.min(1,floatData[i]));
+      int16[i]=s<0?s*0x8000:s*0x7FFF;
+    }
+    const wavBytes=encodeWav(int16,targetRate);
+    console.log(`[voice_ref] sending ${wavBytes.byteLength} bytes`);
+    client.sendBinaryEvent('voice_reference',wavBytes);
+  }catch(err){
+    clearTimeout(uploadTimeout);setBtnLoading('uploadBtn',false);
+    console.error('upload prep failed:',err);
+    toast('Could not prepare file: '+(err.message||err),'error');
+  }
+}
+function encodeWav(int16,sampleRate){
+  const buf=new ArrayBuffer(44+int16.length*2);
+  const view=new DataView(buf);
+  const ws=(off,s)=>{for(let i=0;i<s.length;i++)view.setUint8(off+i,s.charCodeAt(i));};
+  ws(0,'RIFF');view.setUint32(4,36+int16.length*2,true);ws(8,'WAVE');ws(12,'fmt ');
+  view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true);view.setUint32(28,sampleRate*2,true);
+  view.setUint16(32,2,true);view.setUint16(34,16,true);
+  ws(36,'data');view.setUint32(40,int16.length*2,true);
+  for(let i=0;i<int16.length;i++) view.setInt16(44+i*2,int16[i],true);
+  return new Uint8Array(buf);
 }
 
-/* =================================================================
-   MIC → binary send
-================================================================= */
-async function startMic() {
-  if (micStream) return;
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+/* ---------- mic ---------- */
+async function startMic(){
+  if(micStream) return;
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({
+      audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}
     });
-    audioCtx = new AudioContext({ sampleRate: 24000 });
+    audioCtx=new AudioContext({sampleRate:24000});
     await audioCtx.resume();
-
-    const src = audioCtx.createMediaStreamSource(micStream);
-    micProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
-    silentGain = audioCtx.createGain();
-    silentGain.gain.value = 0;
-
-    micProcessor.onaudioprocess = (e) => {
-      if (!micOn || !connected) return;
-      const input = e.inputBuffer.getChannelData(0);
-      const pcm = new Int16Array(input.length);
-      for (let i = 0; i < input.length; i++) {
-        const s = Math.max(-1, Math.min(1, input[i]));
-        pcm[i] = s < 0 ? s * 32768 : s * 32767;
+    const src=audioCtx.createMediaStreamSource(micStream);
+    micProcessor=audioCtx.createScriptProcessor(4096,1,1);
+    silentGain=audioCtx.createGain();silentGain.gain.value=0;
+    micProcessor.onaudioprocess=(e)=>{
+      if(!micOn||!connected) return;
+      const input=e.inputBuffer.getChannelData(0);
+      const pcm=new Int16Array(input.length);
+      for(let i=0;i<input.length;i++){
+        const s=Math.max(-1,Math.min(1,input[i]));
+        pcm[i]=s<0?s*32768:s*32767;
       }
-      // sendBinaryEvent → server @app.on_binary_event("raw_mic")
-      client.sendBinaryEvent('raw_mic', new Uint8Array(pcm.buffer));
+      client.sendBinaryEvent('raw_mic',new Uint8Array(pcm.buffer));
       flagSpeaking('self');
     };
+    src.connect(micProcessor);micProcessor.connect(silentGain);silentGain.connect(audioCtx.destination);
+  }catch(e){toast('Microphone access denied.','error');console.error(e);}
+}
+function cleanupAudio(){
+  if(micProcessor){try{micProcessor.disconnect();}catch(_){}micProcessor=null;}
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+  if(silentGain){try{silentGain.disconnect();}catch(_){}silentGain=null;}
+  if(audioCtx){try{audioCtx.close();}catch(_){}audioCtx=null;}
+}
+function toggleMute(){
+  micOn=!micOn;
+  const btn=document.getElementById('muteBtn');
+  btn.classList.toggle('active',micOn);
+  btn.textContent=micOn?'🎤':'🔇';
+  document.getElementById('muteLabel').textContent=micOn?'Mute':'Unmute';
+}
 
-    src.connect(micProcessor);
-    micProcessor.connect(silentGain);
-    silentGain.connect(audioCtx.destination);
-  } catch (e) {
-    toast('Microphone access denied.', 'error');
-    console.error(e);
+/* ---------- playback ---------- */
+function playPCM(payload){
+  if(!payload||payload.byteLength===0) return;
+  if(payload.byteLength%2!==0) return;
+  const pcm=new Int16Array(payload.buffer,payload.byteOffset,payload.byteLength/2);
+  if(!audioCtx||audioCtx.state==='closed') audioCtx=new AudioContext({sampleRate:24000});
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  const buf=audioCtx.createBuffer(1,pcm.length,24000);
+  const ch=buf.getChannelData(0);
+  for(let i=0;i<pcm.length;i++) ch[i]=pcm[i]/32768;
+  const src=audioCtx.createBufferSource();
+  src.buffer=buf;src.connect(audioCtx.destination);src.start();
+}
+
+/* ---------- speaking indicator ---------- */
+function flagSpeaking(who){
+  let targetEl,statusEl,timerKey;
+  if(who==='host'){targetEl='hostP';statusEl='hostStatus';timerKey='host';}
+  else if(who==='joiner'){targetEl='joinerP';statusEl='joinerStatus';timerKey='joiner';}
+  else{
+    targetEl=isHost?'hostP':'joinerP';
+    statusEl=isHost?'hostStatus':'joinerStatus';
+    timerKey=isHost?'host':'joiner';
   }
-}
-
-function cleanupAudio() {
-  if (micProcessor) { try { micProcessor.disconnect(); } catch(_){} micProcessor = null; }
-  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
-  if (silentGain) { try { silentGain.disconnect(); } catch(_){} silentGain = null; }
-  if (audioCtx) { try { audioCtx.close(); } catch(_){} audioCtx = null; }
-}
-
-function toggleMute() {
-  micOn = !micOn;
-  const btn = document.getElementById('muteBtn');
-  btn.classList.toggle('active', micOn);
-  btn.textContent = micOn ? '🎤' : '🔇';
-  document.getElementById('muteLabel').textContent = micOn ? 'Mute' : 'Unmute';
-}
-
-/* =================================================================
-   PCM PLAYBACK (binary from onBinaryEvent)
-================================================================= */
-function playPCM(payload) {
-  if (!payload || payload.byteLength === 0) return;
-  if (payload.byteLength % 2 !== 0) return; // must be Int16-aligned
-
-  // payload is Uint8Array; reinterpret bytes as Int16
-  const pcm = new Int16Array(payload.buffer, payload.byteOffset, payload.byteLength / 2);
-
-  if (!audioCtx || audioCtx.state === 'closed') {
-    audioCtx = new AudioContext({ sampleRate: 24000 });
-  }
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-
-  const buf = audioCtx.createBuffer(1, pcm.length, 24000);
-  const ch = buf.getChannelData(0);
-  for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
-  const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  src.connect(audioCtx.destination);
-  src.start();
-}
-
-/* =================================================================
-   SPEAKING INDICATORS
-================================================================= */
-function flagSpeaking(who) {
-  let targetEl, statusEl, timerKey;
-  if (who === 'host') { targetEl = 'hostP'; statusEl = 'hostStatus'; timerKey = 'host'; }
-  else if (who === 'joiner') { targetEl = 'joinerP'; statusEl = 'joinerStatus'; timerKey = 'joiner'; }
-  else {
-    targetEl = isHost ? 'hostP' : 'joinerP';
-    statusEl = isHost ? 'hostStatus' : 'joinerStatus';
-    timerKey = isHost ? 'host' : 'joiner';
-  }
-
-  const el = document.getElementById(targetEl);
-  const st = document.getElementById(statusEl);
-  if (!el) return;
+  const el=document.getElementById(targetEl),st=document.getElementById(statusEl);
+  if(!el) return;
   el.classList.add('speaking');
-  if (st) st.textContent = '● Speaking';
-
-  if (timerKey === 'host') {
-    clearTimeout(hostSpeakTimer);
-    hostSpeakTimer = setTimeout(() => { el.classList.remove('speaking'); if (st) st.textContent = ''; }, 400);
-  } else {
-    clearTimeout(joinerSpeakTimer);
-    joinerSpeakTimer = setTimeout(() => { el.classList.remove('speaking'); if (st) st.textContent = ''; }, 400);
-  }
+  if(st) st.textContent='● Speaking';
+  const clear=()=>{el.classList.remove('speaking');if(st)st.textContent='';};
+  if(timerKey==='host'){clearTimeout(hostSpeakTimer);hostSpeakTimer=setTimeout(clear,400);}
+  else{clearTimeout(joinerSpeakTimer);joinerSpeakTimer=setTimeout(clear,400);}
 }
 </script>
 </body>
