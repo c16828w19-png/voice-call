@@ -2,11 +2,7 @@ lynkio==1.3.1
 soundfile==0.12.1
 numpy>=2.1.0
 python-multipart
-
-# Chatterbox ONNX — dependency-minimal, no PyTorch
-onnxruntime
-librosa
-tqdm
-tokenizers
-huggingface_hub
-resemble-perth
+vosk==0.3.45
+pocket-tts
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.5.0

@@ -202,7 +202,7 @@ let client=null,connected=false,roomId=null,isHost=false,micOn=true;
 let audioCtx=null,micStream=null,micProcessor=null,silentGain=null;
 let hostSpeakTimer=null,joinerSpeakTimer=null;
 let uploadTimeout=null,joinTimeout=null;
-let clonerReady=false;
+let ttsReady=false;
 
 /* ---------- init ---------- */
 async function init(){
@@ -211,7 +211,7 @@ async function init(){
   client=new LynkClient(`${proto}//${location.host}`);
 
   client.on('room_created',(d)=>{
-    roomId=d.room_id;isHost=true;clonerReady=!!d.cloner_ready;
+    roomId=d.room_id;isHost=true;ttsReady=!!d.tts_ready;
     clearAllLoading();enterCall();
     toast(`Room "${roomId}" created — waiting for joiner.`,'success');
   });
@@ -320,7 +320,7 @@ function enterCall(){
     document.getElementById('uploadBanner').classList.remove('hidden');
     document.getElementById('closeWrap').classList.remove('hidden');
     const cs=document.getElementById('cloneStatus');
-    if(clonerReady){cs.textContent='ready';cs.classList.remove('off');}
+    if(ttsReady){cs.textContent='ready';cs.classList.remove('off');}
     else{cs.textContent='unavailable (pass-through)';cs.classList.add('off');}
   }else{
     document.getElementById('joinerP').classList.remove('empty');

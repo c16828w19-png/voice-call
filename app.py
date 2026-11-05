@@ -9,9 +9,10 @@ import numpy as np
 import soundfile as sf
 from lynkio import Lynk, render_template
 
-from core.cloner import ChatterboxCloner
+from core.stt import VoskSTT, resample_int16, STT_SAMPLE_RATE
+from core.tts import PocketTTS, TTS_SAMPLE_RATE
 
-SAMPLE_RATE = 24000
+BROWSER_SAMPLE_RATE = 24000
 
 app = Lynk(
     host="0.0.0.0",
@@ -26,29 +27,47 @@ app = Lynk(
 rooms: Dict[str, dict] = {}
 ROOM_RE = re.compile(r"^[A-Za-z0-9_-]{3,64}$")
 
-_cloner = ChatterboxCloner()
+# ──────────────────────────────────────────────────────────────
+# Singletons
+# ──────────────────────────────────────────────────────────────
+_stt: Optional[VoskSTT] = None
+_stt_error: Optional[str] = None
+_tts = PocketTTS()
+
+
+def _load_models_sync():
+    global _stt, _stt_error
+    try:
+        _stt = VoskSTT()
+        print("[STT] Vosk ready")
+    except Exception as e:
+        _stt_error = str(e)
+        _stt = None
+        print(f"[STT] DISABLED — {e}")
+    _tts.load()
 
 
 @app.task
-async def init_model_task():
+async def init_models_task():
     loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, _cloner.load)
+    await loop.run_in_executor(None, _load_models_sync)
 
 
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 # Routes
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 @app.get("/")
 async def index(req):
     return render_template("call.html", context={
         "title": "VoiceClone Call",
-        "cloner_ready": "true" if _cloner.ready else "false",
+        "stt_ready": "true" if _stt is not None else "false",
+        "tts_ready": "true" if _tts.ready else "false",
     })
 
 
-# ------------------------------------------------------------------
-# Control (JSON)  ← client.emit
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
+# Control events (client.emit ↔ @app.on)
+# ──────────────────────────────────────────────────────────────
 @app.on("create_room")
 async def create_room(client, data):
     room_id = (data.get("room_id") or "").strip()
@@ -68,7 +87,8 @@ async def create_room(client, data):
     app.join_room(client.id, room_id)
     await app.emit("room_created", {
         "room_id": room_id,
-        "cloner_ready": _cloner.ready,
+        "stt_ready": _stt is not None,
+        "tts_ready": _tts.ready,
     }, client.id)
 
 
@@ -104,7 +124,7 @@ async def delete_room(client, data):
     for cid in (room["host"], room["joiner"]):
         if cid:
             app.leave_room(cid, room_id)
-    _cloner.clear_reference(room_id)
+    _tts.clear_reference(room_id)
     del rooms[room_id]
 
 
@@ -118,7 +138,7 @@ async def leave_room_event(client, data):
         await app.emit_to_room(room_id, "room_closed", {"room_id": room_id}, exclude=client.id)
         if room["joiner"]:
             app.leave_room(room["joiner"], room_id)
-        _cloner.clear_reference(room_id)
+        _tts.clear_reference(room_id)
         del rooms[room_id]
     else:
         room["joiner"] = None
@@ -126,9 +146,9 @@ async def leave_room_event(client, data):
     app.leave_room(client.id, room_id)
 
 
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 # Binary: voice reference  ← client.sendBinaryEvent
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 @app.on_binary_event("voice_reference")
 async def handle_voice_reference(client, payload: bytes):
     print(f"[voice_ref] received {len(payload)} bytes from {client.id}")
@@ -146,9 +166,8 @@ async def handle_voice_reference(client, payload: bytes):
         print(f"[voice_ref] decode FAILED: {e}")
         return await app.emit("error", {"message": f"Invalid audio: {e}"}, client.id)
 
-    # Normalise to 24 kHz for consistency
-    if sr != SAMPLE_RATE:
-        n_out = int(len(audio) * SAMPLE_RATE / sr)
+    if sr != BROWSER_SAMPLE_RATE:
+        n_out = int(len(audio) * BROWSER_SAMPLE_RATE / sr)
         audio = np.interp(
             np.linspace(0, len(audio) - 1, n_out),
             np.arange(len(audio)),
@@ -156,27 +175,26 @@ async def handle_voice_reference(client, payload: bytes):
         ).astype(np.float32)
 
     rooms[room_id]["voice_ref"] = audio
-    duration = len(audio) / SAMPLE_RATE
+    duration = len(audio) / BROWSER_SAMPLE_RATE
 
-    cloner_ok = False
-    if _cloner.ready:
+    tts_ok = False
+    if _tts.ready:
         loop = asyncio.get_running_loop()
-        cloner_ok = await loop.run_in_executor(
-            None, _cloner.set_reference_from_wav_bytes, room_id, payload
-        )
+        tts_ok = await loop.run_in_executor(None, _tts.set_reference, room_id, payload)
 
-    print(f"[voice_ref] OK: {duration:.2f}s @ {sr}Hz (cloner_ok={cloner_ok})")
+    print(f"[voice_ref] OK: {duration:.2f}s @ {sr}Hz (tts_ok={tts_ok})")
     await app.emit("voice_ready", {
         "room_id": room_id,
         "duration": duration,
-        "cloner_ready": _cloner.ready,
-        "cloner_active": cloner_ok,
+        "stt_ready": _stt is not None,
+        "tts_ready": _tts.ready,
+        "tts_active": tts_ok,
     }, client.id)
 
 
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 # Binary: raw mic  ← client.sendBinaryEvent
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 @app.on_binary_event("raw_mic")
 async def handle_raw_mic(client, payload: bytes):
     room_id = next((rid for rid, r in rooms.items() if client.id in (r["host"], r["joiner"])), None)
@@ -193,28 +211,64 @@ async def handle_raw_mic(client, payload: bytes):
         await app.send_binary_event(target_id, "raw_audio", payload)
         return
 
-    # ── Host → Joiner: Chatterbox voice conversion ──
-    if not (_cloner.ready and room["voice_ref"] is not None):
+    # ── Host → Joiner: STT → Pocket TTS streaming ──
+    if not (_tts.ready and _stt is not None and room["voice_ref"] is not None):
         await app.send_binary_event(target_id, "raw_audio", payload)
         return
 
     try:
+        pcm_16k = resample_int16(payload, BROWSER_SAMPLE_RATE, STT_SAMPLE_RATE)
         loop = asyncio.get_running_loop()
-        converted = await loop.run_in_executor(
-            None, _cloner.convert, room_id, payload
-        )
-        if converted:
-            await app.send_binary_event(target_id, "cloned_audio", converted)
-        else:
-            await app.send_binary_event(target_id, "raw_audio", payload)
+
+        # Run Vosk in a thread to avoid blocking the event loop
+        text, is_endpoint = await loop.run_in_executor(None, _stt.feed, pcm_16k)
+
+        if not is_endpoint or not text:
+            # Utterance not complete — nothing to synthesize yet
+            return
+
+        print(f"[pipeline] STT: {text!r}")
+
+        # Synthesize in a thread; stream chunks back to the joiner
+        await _stream_tts_to_client(room_id, text, target_id)
+
     except Exception as e:
-        print(f"[convert] error: {e}")
+        print(f"[pipeline] error: {e}")
         await app.send_binary_event(target_id, "raw_audio", payload)
 
 
-# ------------------------------------------------------------------
+async def _stream_tts_to_client(room_id: str, text: str, target_id: str):
+    """Run Pocket TTS in a thread and relay each decoded chunk to the joiner."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def _worker():
+        try:
+            for chunk in _tts.synthesize_stream(room_id, text):
+                if chunk:
+                    asyncio.run_coroutine_threadsafe(queue.put(chunk), loop).result(timeout=10)
+        except Exception as e:
+            print(f"[TTS] worker error: {e}")
+        finally:
+            asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+
+    # Start the synthesis thread
+    loop.run_in_executor(None, _worker)
+
+    # Relay chunks as they arrive
+    sent = 0
+    while True:
+        chunk = await queue.get()
+        if chunk is None:
+            break
+        await app.send_binary_event(target_id, "cloned_audio", chunk)
+        sent += len(chunk)
+    print(f"[pipeline] TTS streamed {sent} bytes for: {text!r}")
+
+
+# ──────────────────────────────────────────────────────────────
 # Housekeeping
-# ------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
 @app.task
 async def monitor_rooms():
     while app._running:
@@ -222,7 +276,7 @@ async def monitor_rooms():
         stale = [rid for rid, r in rooms.items() if time.time() - r["created_at"] > 3600]
         for rid in stale:
             await app.emit_to_room(rid, "room_closed", {"room_id": rid})
-            _cloner.clear_reference(rid)
+            _tts.clear_reference(rid)
             del rooms[rid]
         if stale:
             print(f"[monitor] cleaned {len(stale)}, {len(rooms)} active")
