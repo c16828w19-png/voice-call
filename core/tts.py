@@ -7,12 +7,18 @@ from typing import Dict, Iterator, Optional
 import numpy as np
 
 TTS_SAMPLE_RATE = 24000
+# Smallest English model — 1.9M params, ~47 MB on disk, up to 25x faster than real time
+# Alternatives if you have more RAM:
+#   "english_7m_2026-10"  (6.9M params)
+#   "english_18m_2026-10" (18.2M params)
+TTS_MODEL_LANGUAGE = "english_2m_2026-10"
 
 
 class PocketTTS:
     """
-    Wraps Pocket TTS. Loads once; caches per-room voice states from
-    the host's reference WAV. Streaming synthesis yields Int16 PCM chunks.
+    Wraps Pocket TTS. Loads a tiny quantized model once; caches per-room
+    voice states from the host's reference WAV. Streaming synthesis yields
+    Int16 PCM chunks as they are decoded.
     """
 
     def __init__(self):
@@ -26,10 +32,13 @@ class PocketTTS:
     def load(self):
         try:
             from pocket_tts import TTSModel
-            print("[TTS] loading Pocket TTS (100M params, CPU)…")
-            self._model = TTSModel.load_model()
+            print(f"[TTS] loading Pocket TTS ({TTS_MODEL_LANGUAGE}, quantized)…")
+            self._model = TTSModel.load_model(
+                language=TTS_MODEL_LANGUAGE,
+                quantize=True,   # int8 dynamic quantization — ~48% less RAM, ~27% faster[reference:3]
+            )
             self._ready = True
-            print(f"[TTS] READY — sample_rate={self._model.sample_rate}")
+            print(f"[TTS] READY — language={TTS_MODEL_LANGUAGE} sr={self._model.sample_rate}")
         except Exception as e:
             self._error = str(e)
             self._ready = False
@@ -85,7 +94,8 @@ class PocketTTS:
     def synthesize_stream(self, room_id: str, text: str) -> Iterator[bytes]:
         """
         Yields Int16 PCM chunks at 24 kHz as they are decoded.
-        Empty generator if TTS is unavailable or no reference voice.
+        Uses Pocket TTS's incremental generate_audio_stream(), which yields
+        chunks as soon as they are ready — first chunk in ~200 ms[reference:4].
         """
         if not self._ready or not text:
             return
@@ -96,7 +106,6 @@ class PocketTTS:
 
         try:
             for chunk in self._model.generate_audio_stream(state, text):
-                # Pocket TTS yields torch tensors
                 try:
                     arr = chunk.detach().cpu().numpy() if hasattr(chunk, "detach") else np.asarray(chunk)
                 except Exception:
