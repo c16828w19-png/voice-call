@@ -1,16 +1,12 @@
-# --- Core real-time engine ---
 lynkio==1.3.1
-
-# --- KokoClone dependencies ---
-torch
-torchaudio
 soundfile==0.12.1
 numpy>=2.1.0
-huggingface_hub
-# kanade-tokenizer is not on PyPI; install directly from GitHub
-kanade-tokenizer @ git+https://github.com/frothywater/kanade-tokenizer
-kokoro-onnx==0.6.1
-misaki
-
-# --- Server extras ---
 python-multipart
+
+# Chatterbox ONNX — dependency-minimal, no PyTorch
+onnxruntime
+librosa
+tqdm
+tokenizers
+huggingface_hub
+resemble-perth
