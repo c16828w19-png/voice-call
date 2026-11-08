@@ -1,1 +1,2 @@
 models/pocket-tts/p_tts.safetensors filter=lfs diff=lfs merge=lfs -text
+*.safetensors filter=lfs diff=lfs merge=lfs -text
