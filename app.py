@@ -10,7 +10,7 @@ import soundfile as sf
 from lynkio import Lynk, render_template
 
 from core.stt import VoskSTT, resample_int16, STT_SAMPLE_RATE
-from core.tts import PocketTTS, TTS_SAMPLE_RATE
+from core.tts import PocketTTS
 
 BROWSER_SAMPLE_RATE = 24000
 
@@ -27,21 +27,16 @@ app = Lynk(
 rooms: Dict[str, dict] = {}
 ROOM_RE = re.compile(r"^[A-Za-z0-9_-]{3,64}$")
 
-# ──────────────────────────────────────────────────────────────
-# Singletons
-# ──────────────────────────────────────────────────────────────
 _stt: Optional[VoskSTT] = None
-_stt_error: Optional[str] = None
 _tts = PocketTTS()
 
 
 def _load_models_sync():
-    global _stt, _stt_error
+    global _stt
     try:
         _stt = VoskSTT()
-        print("[STT] Vosk ready")
+        print("[STT] Vosk ready (local)")
     except Exception as e:
-        _stt_error = str(e)
         _stt = None
         print(f"[STT] DISABLED — {e}")
     _tts.load()
@@ -53,9 +48,6 @@ async def init_models_task():
     await loop.run_in_executor(None, _load_models_sync)
 
 
-# ──────────────────────────────────────────────────────────────
-# Routes
-# ──────────────────────────────────────────────────────────────
 @app.get("/")
 async def index(req):
     return render_template("call.html", context={
@@ -65,16 +57,13 @@ async def index(req):
     })
 
 
-# ──────────────────────────────────────────────────────────────
-# Control events (client.emit ↔ @app.on)
-# ──────────────────────────────────────────────────────────────
 @app.on("create_room")
 async def create_room(client, data):
     room_id = (data.get("room_id") or "").strip()
     if not room_id:
         return await app.emit("error", {"message": "Enter a room code."}, client.id)
     if not ROOM_RE.match(room_id):
-        return await app.emit("error", {"message": "Room code must be 3–64 chars: letters, digits, - or _."}, client.id)
+        return await app.emit("error", {"message": "Room code must be 3–64 chars."}, client.id)
     if room_id in rooms:
         return await app.emit("error", {"message": f'Room "{room_id}" already exists.'}, client.id)
 
@@ -146,9 +135,6 @@ async def leave_room_event(client, data):
     app.leave_room(client.id, room_id)
 
 
-# ──────────────────────────────────────────────────────────────
-# Binary: voice reference  ← client.sendBinaryEvent
-# ──────────────────────────────────────────────────────────────
 @app.on_binary_event("voice_reference")
 async def handle_voice_reference(client, payload: bytes):
     print(f"[voice_ref] received {len(payload)} bytes from {client.id}")
@@ -186,15 +172,10 @@ async def handle_voice_reference(client, payload: bytes):
     await app.emit("voice_ready", {
         "room_id": room_id,
         "duration": duration,
-        "stt_ready": _stt is not None,
-        "tts_ready": _tts.ready,
         "tts_active": tts_ok,
     }, client.id)
 
 
-# ──────────────────────────────────────────────────────────────
-# Binary: raw mic  ← client.sendBinaryEvent
-# ──────────────────────────────────────────────────────────────
 @app.on_binary_event("raw_mic")
 async def handle_raw_mic(client, payload: bytes):
     room_id = next((rid for rid, r in rooms.items() if client.id in (r["host"], r["joiner"])), None)
@@ -206,12 +187,10 @@ async def handle_raw_mic(client, payload: bytes):
     if not target_id:
         return
 
-    # ── Joiner → Host: immediate raw relay ──
     if not is_host:
         await app.send_binary_event(target_id, "raw_audio", payload)
         return
 
-    # ── Host → Joiner: STT → Pocket TTS streaming ──
     if not (_tts.ready and _stt is not None and room["voice_ref"] is not None):
         await app.send_binary_event(target_id, "raw_audio", payload)
         return
@@ -219,17 +198,12 @@ async def handle_raw_mic(client, payload: bytes):
     try:
         pcm_16k = resample_int16(payload, BROWSER_SAMPLE_RATE, STT_SAMPLE_RATE)
         loop = asyncio.get_running_loop()
-
-        # Run Vosk in a thread to avoid blocking the event loop
         text, is_endpoint = await loop.run_in_executor(None, _stt.feed, pcm_16k)
 
         if not is_endpoint or not text:
-            # Utterance not complete — nothing to synthesize yet
             return
 
         print(f"[pipeline] STT: {text!r}")
-
-        # Synthesize in a thread; stream chunks back to the joiner
         await _stream_tts_to_client(room_id, text, target_id)
 
     except Exception as e:
@@ -238,7 +212,6 @@ async def handle_raw_mic(client, payload: bytes):
 
 
 async def _stream_tts_to_client(room_id: str, text: str, target_id: str):
-    """Run Pocket TTS in a thread and relay each decoded chunk to the joiner."""
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue = asyncio.Queue()
 
@@ -252,10 +225,8 @@ async def _stream_tts_to_client(room_id: str, text: str, target_id: str):
         finally:
             asyncio.run_coroutine_threadsafe(queue.put(None), loop)
 
-    # Start the synthesis thread
     loop.run_in_executor(None, _worker)
 
-    # Relay chunks as they arrive
     sent = 0
     while True:
         chunk = await queue.get()
@@ -266,9 +237,6 @@ async def _stream_tts_to_client(room_id: str, text: str, target_id: str):
     print(f"[pipeline] TTS streamed {sent} bytes for: {text!r}")
 
 
-# ──────────────────────────────────────────────────────────────
-# Housekeeping
-# ──────────────────────────────────────────────────────────────
 @app.task
 async def monitor_rooms():
     while app._running:

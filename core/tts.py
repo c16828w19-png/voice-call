@@ -7,38 +7,34 @@ from typing import Dict, Iterator, Optional
 import numpy as np
 
 TTS_SAMPLE_RATE = 24000
-# Smallest English model — 1.9M params, ~47 MB on disk, up to 25x faster than real time
-# Alternatives if you have more RAM:
-#   "english_7m_2026-10"  (6.9M params)
-#   "english_18m_2026-10" (18.2M params)
-TTS_MODEL_LANGUAGE = "english_2m_2026-10"
+LOCAL_CONFIG = "/models/pocket-tts/local.yaml"
 
 
 class PocketTTS:
-    """
-    Wraps Pocket TTS. Loads a tiny quantized model once; caches per-room
-    voice states from the host's reference WAV. Streaming synthesis yields
-    Int16 PCM chunks as they are decoded.
-    """
-
     def __init__(self):
         self._model = None
         self._ready = False
+        self._cloning_ready = False
         self._error: Optional[str] = None
         self._lock = threading.Lock()
         self._voice_states: Dict[str, object] = {}
         self._ref_paths: Dict[str, str] = {}
 
     def load(self):
+        if not os.path.isfile(LOCAL_CONFIG):
+            self._error = f"Config not found: {LOCAL_CONFIG}"
+            print(f"[TTS] DISABLED — {self._error}")
+            return
+
         try:
             from pocket_tts import TTSModel
-            print(f"[TTS] loading Pocket TTS ({TTS_MODEL_LANGUAGE}, quantized)…")
+            print(f"[TTS] loading Pocket TTS from local config {LOCAL_CONFIG}…")
             self._model = TTSModel.load_model(
-                language=TTS_MODEL_LANGUAGE,
-                quantize=True,   # int8 dynamic quantization — ~48% less RAM, ~27% faster[reference:3]
+                config=LOCAL_CONFIG,
+                quantize=True,
             )
             self._ready = True
-            print(f"[TTS] READY — language={TTS_MODEL_LANGUAGE} sr={self._model.sample_rate}")
+            print("[TTS] READY (local weights)")
         except Exception as e:
             self._error = str(e)
             self._ready = False
@@ -49,11 +45,13 @@ class PocketTTS:
         return self._ready
 
     @property
+    def cloning_ready(self) -> bool:
+        return self._cloning_ready
+
+    @property
     def error(self) -> Optional[str]:
         return self._error
 
-    # ------------------------------------------------------------------
-    # Voice reference
     # ------------------------------------------------------------------
     def set_reference(self, room_id: str, wav_bytes: bytes) -> bool:
         if not self._ready:
@@ -72,6 +70,8 @@ class PocketTTS:
                         pass
                 self._ref_paths[room_id] = path
                 self._voice_states[room_id] = self._model.get_state_for_audio_prompt(path)
+
+            self._cloning_ready = True
             print(f"[TTS] voice reference set for room={room_id}")
             return True
         except Exception as e:
@@ -87,16 +87,11 @@ class PocketTTS:
                 os.remove(path)
             except OSError:
                 pass
+        if not self._voice_states:
+            self._cloning_ready = False
 
     # ------------------------------------------------------------------
-    # Streaming synthesis
-    # ------------------------------------------------------------------
     def synthesize_stream(self, room_id: str, text: str) -> Iterator[bytes]:
-        """
-        Yields Int16 PCM chunks at 24 kHz as they are decoded.
-        Uses Pocket TTS's incremental generate_audio_stream(), which yields
-        chunks as soon as they are ready — first chunk in ~200 ms[reference:4].
-        """
         if not self._ready or not text:
             return
         with self._lock:
