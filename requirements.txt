@@ -4,5 +4,6 @@ numpy>=2.1.0
 python-multipart
 vosk==0.3.45
 pocket-tts
+#huggingface_hub[cli]
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.5.0
