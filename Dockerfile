@@ -18,11 +18,6 @@ COPY . .
 
 RUN mkdir -p /models && cp -a /app/models/. /models/
 
-RUN test -d /models/vosk-tts/vosk-model-small-en-us-0.15 && 
-test -f /models/pocket-tts/local.yaml && 
-test -s /models/pocket-tts/p_tts.safetensors && 
-! grep -q "git-lfs.github.com/spec/v1" /models/pocket-tts/p_tts.safetensors
-
 ENV PORT=8765
 
 EXPOSE 8765
